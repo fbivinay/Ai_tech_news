@@ -30,6 +30,17 @@ ANTHROPIC_API_KEY=sk-ant-... npm start
 
 Feeds refresh every 10 minutes (`REFRESH_INTERVAL_MS` to change).
 
+## Deploy to Vercel
+
+The repo is Vercel-ready out of the box — `public/` is served statically and `api/` runs as serverless functions (no framework preset needed, no build step):
+
+1. Push this repo to GitHub
+2. On [vercel.com](https://vercel.com) → **Add New → Project** → import `Ai_tech_news`
+3. Leave every setting on its default (Framework Preset: **Other**) and hit **Deploy**
+4. Optional: add `ANTHROPIC_API_KEY` under **Project → Settings → Environment Variables** to enable Claude summaries, then redeploy
+
+On Vercel there is no background refresh loop — feeds refresh lazily when a request finds the cache empty or older than 10 minutes, and API responses carry `s-maxage` headers so Vercel's CDN serves most visitors without invoking a function at all. AI summarization is capped at 2 batches (20 newest stories) per refresh to stay inside the function time budget; older stories keep extractive summaries until later refreshes.
+
 ## API
 
 | Endpoint | Description |

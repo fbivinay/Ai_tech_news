@@ -100,9 +100,16 @@ async function summarizeBatchWithClaude(items) {
 /**
  * Attach a `summary` (and `summarySource`) to every item, in place.
  * Items that already have an AI summary are skipped.
+ *
+ * `maxBatches` caps how many Claude calls a single refresh makes — used in
+ * serverless deployments (Vercel) where each invocation has a time budget.
+ * Newest items are upgraded first; the rest keep their extractive summary
+ * until a later refresh.
  */
-async function summarizeAll(items) {
-  const pending = items.filter((item) => !item.summary || item.summarySource === 'excerpt');
+async function summarizeAll(items, { maxBatches = Infinity } = {}) {
+  const pending = items
+    .filter((item) => !item.summary || item.summarySource === 'excerpt')
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
   // Always have a summary immediately; AI upgrades it when available.
   for (const item of pending) {
@@ -114,7 +121,8 @@ async function summarizeAll(items) {
 
   if (!aiEnabled() || pending.length === 0) return;
 
-  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+  const limit = Math.min(pending.length, maxBatches * BATCH_SIZE);
+  for (let i = 0; i < limit; i += BATCH_SIZE) {
     const batch = pending.slice(i, i + BATCH_SIZE);
     try {
       const summaries = await summarizeBatchWithClaude(batch);

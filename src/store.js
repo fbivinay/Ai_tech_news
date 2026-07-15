@@ -146,7 +146,7 @@ function dedupeTitleKey(title) {
   return title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 10).join(' ');
 }
 
-async function refresh() {
+async function refresh({ maxSummaryBatches = Infinity } = {}) {
   if (state.refreshing) return;
   state.refreshing = true;
   try {
@@ -185,7 +185,7 @@ async function refresh() {
     }
 
     const items = [...merged.values()];
-    await summarizeAll(items);
+    await summarizeAll(items, { maxBatches: maxSummaryBatches });
 
     const sourceWeights = Object.fromEntries(SOURCES.map((s) => [s.name, s.weight]));
     for (const item of items) {
@@ -243,9 +243,20 @@ function getCategories() {
     .map(([name, count]) => ({ name, count }));
 }
 
+// Long-running server mode: background interval keeps the store warm.
 function start() {
   refresh().catch((err) => console.error('[refresh] initial refresh failed:', err));
   setInterval(() => refresh().catch((err) => console.error('[refresh] failed:', err)), REFRESH_INTERVAL_MS);
 }
 
-module.exports = { start, refresh, getFeed, getCategories, state };
+// Serverless mode (Vercel): refresh lazily on request when the in-memory
+// cache is empty (cold start) or stale. Paired with CDN caching via
+// s-maxage headers, most requests never trigger a fetch at all.
+async function ensureFresh({ maxSummaryBatches = 2 } = {}) {
+  const stale = !state.lastRefresh || Date.now() - new Date(state.lastRefresh).getTime() > REFRESH_INTERVAL_MS;
+  if (state.items.length === 0 || stale) {
+    await refresh({ maxSummaryBatches });
+  }
+}
+
+module.exports = { start, ensureFresh, refresh, getFeed, getCategories, state };
