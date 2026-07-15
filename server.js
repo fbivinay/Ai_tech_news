@@ -1,0 +1,39 @@
+// AI & Tech News — aggregation platform server.
+// Serves the static frontend and a small JSON API over the in-memory store.
+
+const path = require('path');
+const express = require('express');
+const store = require('./src/store');
+const { aiEnabled } = require('./src/lib/summarize');
+
+const PORT = Number(process.env.PORT || 3000);
+const app = express();
+
+app.disable('x-powered-by');
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '5m' }));
+
+// Paginated feed: /api/feed?page=1&limit=12&category=AI%20Models
+app.get('/api/feed', (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(30, Math.max(1, parseInt(req.query.limit, 10) || 12));
+  const category = req.query.category || null;
+  res.json(store.getFeed({ page, limit, category }));
+});
+
+app.get('/api/categories', (_req, res) => {
+  res.json({ categories: store.getCategories() });
+});
+
+app.get('/api/status', (_req, res) => {
+  res.json({
+    items: store.state.items.length,
+    lastRefresh: store.state.lastRefresh,
+    aiSummaries: aiEnabled(),
+    sources: store.state.sourceStatus,
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`AI & Tech News running on http://localhost:${PORT}`);
+  store.start();
+});

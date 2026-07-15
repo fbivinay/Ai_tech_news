@@ -1,0 +1,20 @@
+{
+  "name": "ai-tech-news",
+  "version": "1.0.0",
+  "description": "AI & Technology news discovery and aggregation platform — AI-generated summaries, full stories at the original source",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "express": "^4.22.2",
+    "rss-parser": "^3.13.0"
+  },
+  "license": "MIT"
+}

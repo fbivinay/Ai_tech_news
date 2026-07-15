@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI &amp; Tech News — Concise AI summaries, full stories at the source</title>
+  <meta name="description" content="The fastest way to stay updated on AI and technology. Read concise AI-generated summaries and go directly to the original source for the full story." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/" aria-label="AI and Tech News home">
+        <span class="brand-mark">⚡</span>
+        <span class="brand-text">AI <em>&amp;</em> Tech News</span>
+      </a>
+      <p class="tagline">Concise AI summaries · full stories at the source</p>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+    </div>
+    <nav class="wrap category-bar" id="category-bar" aria-label="Categories"></nav>
+  </header>
+
+  <main class="wrap">
+    <section id="hero" class="hero" hidden aria-label="Top story"></section>
+
+    <section aria-label="Latest updates">
+      <h2 class="section-title" id="feed-title">Latest Updates</h2>
+      <div id="feed" class="feed-grid"></div>
+    </section>
+
+    <div id="sentinel" class="sentinel" aria-hidden="true"></div>
+    <div id="loader" class="loader" hidden><span class="spinner"></span> Loading more stories…</div>
+    <div id="end-note" class="end-note" hidden>You're all caught up ✓</div>
+    <div id="empty-note" class="end-note" hidden>No stories in this category right now.</div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>This platform is a news <strong>discovery and aggregation</strong> service. We never republish full articles —
+      every story links directly to the original publisher, who receives the referral traffic.</p>
+      <p class="muted">Summaries are AI-generated from public headlines and feed excerpts and may contain errors.
+      Headlines, trademarks, and images belong to their respective publishers.</p>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-icon">↗</span>
+    <span>External link — you are leaving the platform.<br /><small id="toast-dest"></small></span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
