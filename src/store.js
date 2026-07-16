@@ -13,9 +13,9 @@ const { classify } = require('./lib/classify');
 const { scoreItem } = require('./lib/score');
 const { summarizeAll, aiEnabled } = require('./lib/summarize');
 
-const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 10 * 60 * 1000);
-const FETCH_TIMEOUT_MS = 15000;
-const MAX_ITEMS_PER_SOURCE = 25;
+const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
+const FETCH_TIMEOUT_MS = 10000;
+const MAX_ITEMS_PER_SOURCE = 20;
 const MAX_AGE_DAYS = 7;
 const HERO_MAX_AGE_HOURS = 36;
 
@@ -233,6 +233,38 @@ function getFeed({ page = 1, limit = 12, category = null } = {}) {
   };
 }
 
+// Netflix-style homepage payload: billboard hero, a "Trending Now" rail of
+// the highest-scoring recent stories, and one rail per major category.
+function getRows() {
+  const hero = pickHero();
+  const rest = state.items.filter((item) => item !== hero);
+
+  const cutoff = Date.now() - 48 * 36e5;
+  const trending = rest
+    .filter((item) => new Date(item.publishedAt).getTime() >= cutoff)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 14);
+  const trendingIds = new Set(trending.map((item) => item.id));
+
+  const byCategory = new Map();
+  for (const item of rest) {
+    if (!byCategory.has(item.category)) byCategory.set(item.category, []);
+    byCategory.get(item.category).push(item);
+  }
+
+  const rows = [...byCategory.entries()]
+    .filter(([, items]) => items.length >= 4)
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 7)
+    .map(([name, items]) => ({
+      name,
+      items: items.filter((item) => !trendingIds.has(item.id)).slice(0, 14),
+    }))
+    .filter((row) => row.items.length >= 4);
+
+  return { hero, trending, rows, lastRefresh: state.lastRefresh };
+}
+
 function getCategories() {
   const counts = new Map();
   for (const item of state.items) {
@@ -249,14 +281,21 @@ function start() {
   setInterval(() => refresh().catch((err) => console.error('[refresh] failed:', err)), REFRESH_INTERVAL_MS);
 }
 
-// Serverless mode (Vercel): refresh lazily on request when the in-memory
-// cache is empty (cold start) or stale. Paired with CDN caching via
-// s-maxage headers, most requests never trigger a fetch at all.
+// Serverless mode (Vercel): only a cold start (empty store) blocks the
+// request. When data merely went stale, we serve it immediately and return
+// the refresh promise so the handler can hand it to waitUntil() — the user
+// never waits on feed fetching. Paired with CDN s-maxage caching, most
+// requests never even reach a function.
 async function ensureFresh({ maxSummaryBatches = 2 } = {}) {
-  const stale = !state.lastRefresh || Date.now() - new Date(state.lastRefresh).getTime() > REFRESH_INTERVAL_MS;
-  if (state.items.length === 0 || stale) {
+  if (state.items.length === 0) {
     await refresh({ maxSummaryBatches });
+    return null;
   }
+  const stale = !state.lastRefresh || Date.now() - new Date(state.lastRefresh).getTime() > REFRESH_INTERVAL_MS;
+  if (stale && !state.refreshing) {
+    return refresh({ maxSummaryBatches }).catch((err) => console.error('[refresh] background refresh failed:', err));
+  }
+  return null;
 }
 
-module.exports = { start, ensureFresh, refresh, getFeed, getCategories, state };
+module.exports = { start, ensureFresh, refresh, getFeed, getRows, getCategories, state };

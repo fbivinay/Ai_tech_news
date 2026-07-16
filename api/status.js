@@ -1,10 +1,10 @@
 // Vercel serverless function: GET /api/status
-const store = require('../src/store');
+const { store, freshen } = require('./_shared');
 const { aiEnabled } = require('../src/lib/summarize');
 
 module.exports = async (_req, res) => {
-  await store.ensureFresh();
-  res.setHeader('Cache-Control', 's-maxage=60');
+  await freshen();
+  res.setHeader('Cache-Control', 's-maxage=30');
   res.json({
     items: store.state.items.length,
     lastRefresh: store.state.lastRefresh,

@@ -22,6 +22,11 @@ app.get('/api/feed', (req, res) => {
   res.json(store.getFeed({ page, limit, category }));
 });
 
+// Homepage rails: billboard hero + Trending Now + one rail per category
+app.get('/api/rows', (_req, res) => {
+  res.json(store.getRows());
+});
+
 app.get('/api/categories', (_req, res) => {
   res.json({ categories: store.getCategories() });
 });

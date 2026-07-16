@@ -6,12 +6,12 @@ A **news discovery and aggregation platform** for AI & technology — not a publ
 
 ## Features
 
-- **Hero story** — one top story selected by an importance score (breaking news, major launches, funding, M&A, policy, security incidents), weighted by source authority and recency decay
+- **Billboard + Trending** — the top story and a ranked Trending Now rail selected by an importance score (breaking news, major launches, funding, M&A, policy, security incidents), weighted by source authority and recency decay
 - **AI summaries** — neutral, factual, 3–4 lines, generated with Claude (`claude-opus-4-8`) when `ANTHROPIC_API_KEY` is set; a clean extractive fallback otherwise, so the app always works
 - **News cards** — headline, source logo + name, summary, published time, category, company tags, region, and a Read Full Article button; clicking anywhere opens the original article in a new tab with a subtle "External link — you are leaving the platform" notice
 - **Infinite scroll** with category filtering
-- **12 sources** — TechCrunch, The Verge, Ars Technica, VentureBeat, Wired, MIT Technology Review, Engadget, ZDNET, The Register, AI News, MarkTechPost, Google AI Blog
-- **Light-first design** (Google News × The Information × Techmeme) with optional dark mode, mobile-first, no popups, no autoplay
+- **36 sources** — major tech press (TechCrunch, The Verge, Ars Technica, Wired, MIT Tech Review, Engadget, CNET, Gizmodo, Tom's Hardware…), mainstream tech desks (BBC, The Guardian, NYT, CNBC), AI-focused outlets (VentureBeat AI, The Decoder, Google AI, OpenAI, NVIDIA, IEEE Spectrum…), security (Bleeping Computer, The Hacker News, Krebs), and India tech & startups (Economic Times Tech, Inc42)
+- **Netflix-style light UI** — billboard hero, horizontal category rails with hover-scale cards and Top-10 rank numerals, red accent, optional dark mode, mobile-first, no popups, no autoplay
 
 ## Quick start
 
@@ -28,7 +28,7 @@ cp .env.example .env      # add your ANTHROPIC_API_KEY
 ANTHROPIC_API_KEY=sk-ant-... npm start
 ```
 
-Feeds refresh every 10 minutes (`REFRESH_INTERVAL_MS` to change).
+Feeds refresh every minute (`REFRESH_INTERVAL_MS` to change), and the page live-polls every minute, showing a "New stories" pill when fresh news lands.
 
 ## Deploy to Vercel
 
@@ -39,13 +39,14 @@ The repo is Vercel-ready out of the box — `public/` is served statically and `
 3. Leave every setting on its default (Framework Preset: **Other**) and hit **Deploy**
 4. Optional: add `ANTHROPIC_API_KEY` under **Project → Settings → Environment Variables** to enable Claude summaries, then redeploy
 
-On Vercel there is no background refresh loop — feeds refresh lazily when a request finds the cache empty or older than 10 minutes, and API responses carry `s-maxage` headers so Vercel's CDN serves most visitors without invoking a function at all. AI summarization is capped at 2 batches (20 newest stories) per refresh to stay inside the function time budget; older stories keep extractive summaries until later refreshes.
+On Vercel there is no background refresh loop — feeds refresh lazily when a request finds the cache empty or older than 1 minute, and API responses carry `s-maxage` headers so Vercel's CDN serves most visitors without invoking a function at all. Stale data never blocks a request — it is served immediately while the refresh runs in the background (waitUntil). AI summarization is capped at 2 batches (20 newest stories) per refresh; older stories keep extractive summaries until later refreshes.
 
 ## API
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/feed?page=1&limit=12&category=AI%20Models` | Paginated feed; page 1 of "All" includes the `hero` pick |
+| `GET /api/rows` | Homepage payload: billboard hero, Trending Now, category rails |
+| `GET /api/feed?page=1&limit=12&category=AI%20Models` | Paginated feed for the Latest Updates grid |
 | `GET /api/categories` | Category names with counts |
 | `GET /api/status` | Item count, last refresh, per-source fetch status, AI on/off |
 
