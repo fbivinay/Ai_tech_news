@@ -22,6 +22,20 @@ app.get('/api/feed', (req, res) => {
   res.json(store.getFeed({ page, limit, category }));
 });
 
+// Everything the homepage needs in one request + one consistent snapshot
+app.get('/api/home', (_req, res) => {
+  res.json({
+    ...store.getRows(),
+    categories: store.getCategories(),
+    feed: store.getFeed({ page: 1, limit: 12 }),
+  });
+});
+
+// Full-store dump (used by serverless instances to hydrate on Vercel)
+app.get('/api/snapshot', (_req, res) => {
+  res.json(store.getSnapshot());
+});
+
 // Homepage rails: billboard hero + Trending Now + one rail per category
 app.get('/api/rows', (_req, res) => {
   res.json(store.getRows());

@@ -1,8 +1,9 @@
 /* AI & Tech News frontend — Netflix-style homepage.
    Billboard hero + horizontal rails + infinite "Latest" grid.
-   Fast by design: skeleton screens, instant repaint from sessionStorage on
-   repeat visits (then silent revalidation), 60-second live polling with a
-   "New stories" pill, and early infinite-scroll prefetch. */
+   Fast by design: one /api/home request per load, skeleton screens, instant
+   repaint from localStorage on repeat visits, 60-second live polling with a
+   "New stories" pill (the page never reshuffles itself), and early
+   infinite-scroll prefetch. */
 
 (() => {
   const state = {
@@ -13,8 +14,8 @@
     rowsFingerprint: null,
   };
 
-  const CACHE_KEY = 'home-cache-v2';
-  const CACHE_MAX_AGE_MS = 10 * 60 * 1000;
+  const CACHE_KEY = 'home-cache-v3';
+  const CACHE_MAX_AGE_MS = 30 * 60 * 1000;
   const POLL_MS = 60 * 1000;
 
   const $ = (id) => document.getElementById(id);
@@ -326,12 +327,27 @@
 
   /* ---------- Rendering: full home ---------- */
 
-  function renderHome(rows, feed) {
+  function renderHome(home) {
     clearSkeletons();
-    renderBillboard(rows.hero);
-    renderRails(rows);
-    state.rowsFingerprint = rowsFingerprint(rows);
-    renderGridFirstPage(feed);
+    renderBillboard(home.hero);
+    renderRails(home);
+    renderCategories(home.categories);
+    state.rowsFingerprint = rowsFingerprint(home);
+    renderGridFirstPage(home.feed);
+  }
+
+  // Fresh data arrived while something is already on screen: never yank the
+  // page out from under the reader — offer it through the pill instead.
+  function offerUpdate(home) {
+    newPillEl.classList.add('show');
+    newPillEl.onclick = () => {
+      newPillEl.classList.remove('show');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      state.category = 'All';
+      state.page = 1;
+      state.hasMore = true;
+      renderHome(home);
+    };
   }
 
   function renderGridFirstPage(data) {
@@ -365,30 +381,28 @@
   async function boot() {
     let painted = false;
 
+    // Instant paint from the last visit (localStorage survives new tabs).
     try {
-      const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
       if (cached && Date.now() - cached.at < CACHE_MAX_AGE_MS) {
-        renderHome(cached.rows, cached.feed);
-        renderCategories(cached.categories);
+        renderHome(cached.home);
         painted = true;
       }
     } catch { /* corrupt cache — ignore */ }
 
     if (!painted) showSkeletons();
 
+    // One request, one consistent snapshot — no cross-endpoint mismatches.
     try {
-      const [rows, feed, categories] = await Promise.all([
-        getJSON('/api/rows'),
-        fetchFeed(1),
-        getJSON('/api/categories').then((j) => j.categories),
-      ]);
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rows, feed, categories }));
+      const home = await getJSON('/api/home');
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), home })); } catch { /* quota */ }
 
-      if (!painted || rowsFingerprint(rows) !== state.rowsFingerprint) {
-        renderHome(rows, feed);
-        renderCategories(categories);
+      if (!painted) {
+        renderHome(home);
+      } else if (rowsFingerprint(home) !== state.rowsFingerprint) {
+        offerUpdate(home); // stable page + pill, instead of a visible reshuffle
       } else {
-        state.hasMore = feed.hasMore;
+        state.hasMore = home.feed.hasMore;
       }
     } catch (err) {
       console.error('boot failed', err);
@@ -443,7 +457,8 @@
   function renderCategories(categories) {
     const bar = $('category-bar');
     bar.textContent = '';
-    const all = [{ name: 'All' }, ...categories.slice(0, 9)];
+    // Fixed taxonomy from the server — same chips, same order, every time.
+    const all = [{ name: 'All' }, ...categories];
     for (const { name } of all) {
       const chip = el('button', 'category-chip', name);
       chip.type = 'button';
@@ -462,23 +477,10 @@
   async function poll() {
     if (document.hidden) return;
     try {
-      const rows = await getJSON('/api/rows');
-      if (state.rowsFingerprint && rowsFingerprint(rows) !== state.rowsFingerprint) {
-        newPillEl.classList.add('show');
-        newPillEl.onclick = async () => {
-          newPillEl.classList.remove('show');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          state.category = 'All';
-          state.page = 1;
-          state.hasMore = true;
-          const [feed, categories] = await Promise.all([
-            fetchFeed(1),
-            getJSON('/api/categories').then((j) => j.categories),
-          ]);
-          renderHome(rows, feed);
-          renderCategories(categories);
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rows, feed, categories }));
-        };
+      const home = await getJSON('/api/home');
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), home })); } catch { /* quota */ }
+      if (state.rowsFingerprint && rowsFingerprint(home) !== state.rowsFingerprint) {
+        offerUpdate(home);
       }
     } catch { /* transient network issue — next tick will retry */ }
   }
