@@ -278,10 +278,62 @@
     return rail;
   }
 
+  function slugify(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
   function renderRails(data) {
     railsEl.textContent = '';
-    if (data.trending?.length) railsEl.append(buildRail('Trending Now', data.trending.slice(0, 10), { ranked: true }));
-    for (const row of data.rows || []) railsEl.append(buildRail(row.name, row.items));
+    if (data.trending?.length) {
+      const trendingRail = buildRail('Trending Now', data.trending.slice(0, 10), { ranked: true });
+      trendingRail.id = 'section-trending';
+      railsEl.append(trendingRail);
+    }
+    for (const row of data.rows || []) {
+      const rail = buildRail(row.name, row.items);
+      rail.id = `section-${slugify(row.name)}`;
+      railsEl.append(rail);
+    }
+  }
+
+  /* ---------- Section navigation (sticky, with scrollspy) ---------- */
+
+  let sectionSpy = null;
+
+  function renderSectionNav() {
+    const nav = $('section-nav');
+    nav.textContent = '';
+
+    const sections = [
+      { label: 'Top Story', target: billboardEl },
+      ...[...railsEl.querySelectorAll('.rail')].map((rail) => ({
+        label: rail.querySelector('.rail-title')?.textContent,
+        target: rail,
+      })),
+      { label: 'Latest', target: document.getElementById('latest') },
+    ].filter((s) => s.label && s.target && !s.target.hidden);
+
+    const chipByTarget = new Map();
+    for (const { label, target } of sections) {
+      const chip = el('button', 'section-chip', label);
+      chip.type = 'button';
+      chip.addEventListener('click', () => target.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      nav.append(chip);
+      chipByTarget.set(target, chip);
+    }
+
+    // Highlight the section currently under the header as the user scrolls.
+    if (sectionSpy) sectionSpy.disconnect();
+    sectionSpy = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          chipByTarget.forEach((chip, target) => chip.classList.toggle('active', target === entry.target));
+          const active = chipByTarget.get(entry.target);
+          active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      }
+    }, { rootMargin: '-120px 0px -65% 0px' });
+    chipByTarget.forEach((_chip, target) => sectionSpy.observe(target));
   }
 
   function rowsFingerprint(data) {
@@ -332,6 +384,7 @@
     renderBillboard(home.hero);
     renderRails(home);
     renderCategories(home.categories);
+    renderSectionNav();
     state.rowsFingerprint = rowsFingerprint(home);
     renderGridFirstPage(home.feed);
   }
