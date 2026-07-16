@@ -3,6 +3,7 @@
 
 const path = require('path');
 const express = require('express');
+const compression = require('compression');
 const store = require('./src/store');
 const { aiEnabled } = require('./src/lib/summarize');
 
@@ -10,6 +11,7 @@ const PORT = Number(process.env.PORT || 3000);
 const app = express();
 
 app.disable('x-powered-by');
+app.use(compression());
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '5m' }));
 
 // Paginated feed: /api/feed?page=1&limit=12&category=AI%20Models

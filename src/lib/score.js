@@ -17,7 +17,7 @@ const SIGNALS = [
 ];
 
 // Newsletter digests, roundups, and deal posts shouldn't lead the homepage.
-const ROUNDUP_PENALTY = /newsletter|\bdigest\b|\broundup\b|\brecap\b|week in review|daily brief|^the download\b|\bdeals?\b|best .* (deals|of 20\d\d)|\bgift guide\b|\bquiz\b/i;
+const ROUNDUP_PENALTY = /newsletter|\bdigest\b|\broundup\b|\brecap\b|week in review|daily brief|^the download\b|\bdeals?\b|\bcoupons?\b|\d+% off|\bdiscount(s|ed)?\b|\bsale\b|black friday|prime day|best .* of 20\d\d|\bgift guide\b|\bquiz\b|\bhow to\b|\bi tested\b|\bhands[- ]on\b/i;
 
 const HALF_LIFE_HOURS = 8;
 
