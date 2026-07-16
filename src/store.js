@@ -14,7 +14,7 @@ const { scoreItem } = require('./lib/score');
 const { summarizeAll, aiEnabled } = require('./lib/summarize');
 
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
-const FETCH_TIMEOUT_MS = 10000;
+const FETCH_TIMEOUT_MS = 7000;
 const MAX_ITEMS_PER_SOURCE = 20;
 const MAX_AGE_DAYS = 7;
 const HERO_MAX_AGE_HOURS = 36;
@@ -184,6 +184,19 @@ async function refresh({ maxSummaryBatches = Infinity } = {}) {
       merged.set(record.id, record);
     }
 
+    // Re-add stories we already know about but that this fetch round didn't
+    // return (a source timed out, got rate-limited, or the item scrolled off
+    // its feed). Without this, a transient source failure makes its stories —
+    // and sometimes an entire section — vanish until the next good fetch.
+    for (const item of state.items) {
+      if (merged.has(item.id)) continue;
+      if (Date.now() - new Date(item.publishedAt).getTime() > MAX_AGE_DAYS * 864e5) continue;
+      const titleKey = dedupeTitleKey(item.title);
+      if (titleKeys.has(titleKey)) continue;
+      titleKeys.add(titleKey);
+      merged.set(item.id, item);
+    }
+
     const items = [...merged.values()];
     await summarizeAll(items, { maxBatches: maxSummaryBatches });
 
@@ -193,6 +206,7 @@ async function refresh({ maxSummaryBatches = Infinity } = {}) {
     }
 
     items.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    items.length = Math.min(items.length, 800); // bound memory / payloads
 
     state.items = items;
     state.byId = new Map(items.map((item) => [item.id, item]));
@@ -233,6 +247,13 @@ function getFeed({ page = 1, limit = 12, category = null } = {}) {
   };
 }
 
+// Canonical section order. Rails and category chips always follow this,
+// so sections never reshuffle or vanish between refreshes.
+const SECTION_ORDER = [
+  'AI Models', 'Tech', 'Startups & Funding', 'Policy & Regulation', 'Security',
+  'Hardware & Chips', 'Consumer Tech', 'Research', 'Robotics', 'Cloud & Enterprise', 'Open Source',
+];
+
 // Netflix-style homepage payload: billboard hero, a "Trending Now" rail of
 // the highest-scoring recent stories, and one rail per major category.
 function getRows() {
@@ -252,27 +273,55 @@ function getRows() {
     byCategory.get(item.category).push(item);
   }
 
-  const rows = [...byCategory.entries()]
-    .filter(([, items]) => items.length >= 4)
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, 7)
-    .map(([name, items]) => ({
+  const rows = SECTION_ORDER
+    .map((name) => ({
       name,
-      items: items.filter((item) => !trendingIds.has(item.id)).slice(0, 14),
+      items: (byCategory.get(name) || []).filter((item) => !trendingIds.has(item.id)).slice(0, 14),
     }))
-    .filter((row) => row.items.length >= 4);
+    .filter((row) => row.items.length >= 3)
+    .slice(0, 8);
 
   return { hero, trending, rows, lastRefresh: state.lastRefresh };
 }
 
+// Fixed taxonomy with live counts — every category always appears, in the
+// same order, even when it currently has few or no stories.
 function getCategories() {
   const counts = new Map();
   for (const item of state.items) {
     counts.set(item.category, (counts.get(item.category) || 0) + 1);
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, count }));
+  return SECTION_ORDER.map((name) => ({ name, count: counts.get(name) || 0 }));
+}
+
+// Full-store snapshot: lets a cold serverless instance hydrate from the
+// CDN-cached copy of another instance instead of re-fetching 36 feeds.
+function getSnapshot() {
+  return { lastRefresh: state.lastRefresh, items: state.items };
+}
+
+function loadSnapshot(snapshot) {
+  if (!snapshot?.items?.length) return false;
+  state.items = snapshot.items;
+  state.byId = new Map(snapshot.items.map((item) => [item.id, item]));
+  state.lastRefresh = snapshot.lastRefresh || new Date().toISOString();
+  console.log(`[hydrate] loaded ${snapshot.items.length} items from snapshot`);
+  return true;
+}
+
+async function hydrateFromSnapshot() {
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (!host) return false;
+  try {
+    const res = await fetch(`https://${host}/api/snapshot`, {
+      signal: AbortSignal.timeout(3000),
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) return false;
+    return loadSnapshot(await res.json());
+  } catch {
+    return false;
+  }
 }
 
 // Long-running server mode: background interval keeps the store warm.
@@ -286,10 +335,15 @@ function start() {
 // the refresh promise so the handler can hand it to waitUntil() — the user
 // never waits on feed fetching. Paired with CDN s-maxage caching, most
 // requests never even reach a function.
-async function ensureFresh({ maxSummaryBatches = 2 } = {}) {
+async function ensureFresh({ maxSummaryBatches = 2, hydrate = true } = {}) {
   if (state.items.length === 0) {
-    await refresh({ maxSummaryBatches });
-    return null;
+    // Cold instance: hydrating from the CDN snapshot takes ~100ms vs many
+    // seconds for a full 36-feed fetch. Fall back to the full fetch only
+    // when no snapshot exists yet (first request after a deployment).
+    if (!(hydrate && await hydrateFromSnapshot())) {
+      await refresh({ maxSummaryBatches });
+      return null;
+    }
   }
   const stale = !state.lastRefresh || Date.now() - new Date(state.lastRefresh).getTime() > REFRESH_INTERVAL_MS;
   if (stale && !state.refreshing) {
@@ -298,4 +352,4 @@ async function ensureFresh({ maxSummaryBatches = 2 } = {}) {
   return null;
 }
 
-module.exports = { start, ensureFresh, refresh, getFeed, getRows, getCategories, state };
+module.exports = { start, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, state };

@@ -13,8 +13,10 @@ async function freshen() {
 }
 
 function cacheHeaders(res) {
-  // 1-minute edge cache; stale copies served instantly while revalidating.
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+  // 1-minute edge cache; for the following 10 minutes stale copies are
+  // served instantly while the CDN revalidates in the background — visitors
+  // essentially never wait on the origin.
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=600');
 }
 
 module.exports = { store, freshen, cacheHeaders };
