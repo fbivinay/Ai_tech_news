@@ -1,8 +1,9 @@
-// Vercel serverless function: GET /api/rows — homepage billboard + rails.
-const { store, freshen, cacheHeaders } = require('./_shared');
+// Vercel serverless function: GET /api/rows — kept for API compatibility;
+// the frontend now uses /api/home.
+const { store, ensureReadyForRequest, cacheHeaders, warmingResponse } = require('./_shared');
 
 module.exports = async (_req, res) => {
-  await freshen();
+  if (!(await ensureReadyForRequest())) return warmingResponse(res);
   cacheHeaders(res);
   res.json(store.getRows());
 };

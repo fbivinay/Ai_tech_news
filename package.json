@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build:seed": "node scripts/build-seed.js"
   },
   "engines": {
     "node": ">=18"
