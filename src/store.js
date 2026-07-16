@@ -314,7 +314,7 @@ async function hydrateFromSnapshot() {
   if (!host) return false;
   try {
     const res = await fetch(`https://${host}/api/snapshot`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(2000),
       headers: { accept: 'application/json' },
     });
     if (!res.ok) return false;
@@ -324,8 +324,22 @@ async function hydrateFromSnapshot() {
   }
 }
 
+// Last-resort bootstrap: a news snapshot bundled with the deployment itself.
+// Slightly old, but it makes even the very first request after a deploy
+// instant — the background refresh replaces it within seconds.
+function loadSeed() {
+  try {
+    return loadSnapshot(require('../data/seed.json'));
+  } catch {
+    return false;
+  }
+}
+
 // Long-running server mode: background interval keeps the store warm.
+// The bundled seed makes the very first requests instant while the real
+// fetch completes.
 function start() {
+  if (state.items.length === 0) loadSeed();
   refresh().catch((err) => console.error('[refresh] initial refresh failed:', err));
   setInterval(() => refresh().catch((err) => console.error('[refresh] failed:', err)), REFRESH_INTERVAL_MS);
 }
@@ -335,21 +349,28 @@ function start() {
 // the refresh promise so the handler can hand it to waitUntil() — the user
 // never waits on feed fetching. Paired with CDN s-maxage caching, most
 // requests never even reach a function.
-async function ensureFresh({ maxSummaryBatches = 2, hydrate = true } = {}) {
-  if (state.items.length === 0) {
-    // Cold instance: hydrating from the CDN snapshot takes ~100ms vs many
-    // seconds for a full 36-feed fetch. Fall back to the full fetch only
-    // when no snapshot exists yet (first request after a deployment).
-    if (!(hydrate && await hydrateFromSnapshot())) {
-      await refresh({ maxSummaryBatches });
-      return null;
-    }
+// The hard rule of the request path: NEVER block a response on feed
+// fetching. Data is found in this order — memory → CDN snapshot (~100ms)
+// → seed bundled with the deployment (instant) — and any actual feed
+// refresh runs strictly in the background (waitUntil on Vercel).
+// `ready: false` only happens if every bootstrap source is missing.
+async function ensureReady() {
+  const staleNow = () => !state.lastRefresh || Date.now() - new Date(state.lastRefresh).getTime() > REFRESH_INTERVAL_MS;
+
+  if (state.items.length === 0) await hydrateFromSnapshot();
+  if (state.items.length === 0) loadSeed();
+
+  if (state.items.length > 0) {
+    const background = staleNow() && !state.refreshing
+      ? refresh({ maxSummaryBatches: 1 }).catch((err) => console.error('[refresh] background refresh failed:', err.message))
+      : null;
+    return { ready: true, background };
   }
-  const stale = !state.lastRefresh || Date.now() - new Date(state.lastRefresh).getTime() > REFRESH_INTERVAL_MS;
-  if (stale && !state.refreshing) {
-    return refresh({ maxSummaryBatches }).catch((err) => console.error('[refresh] background refresh failed:', err));
-  }
-  return null;
+
+  const background = state.refreshing
+    ? null
+    : refresh({ maxSummaryBatches: 0 }).catch((err) => console.error('[refresh] warmup failed:', err.message));
+  return { ready: false, background };
 }
 
-module.exports = { start, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, state };
+module.exports = { start, ensureReady, refresh, getFeed, getRows, getCategories, getSnapshot, loadSeed, state };

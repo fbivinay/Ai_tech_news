@@ -366,10 +366,18 @@
 
   /* ---------- Data loading ---------- */
 
-  async function getJSON(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${url} → ${res.status}`);
-    return res.json();
+  // A 202 {warming:true} means a fresh deployment is fetching news for the
+  // first time — keep the skeletons up and retry until real data arrives.
+  async function getJSON(url, { retryWarming = true } = {}) {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const res = await fetch(url);
+      if (!res.ok && res.status !== 202) throw new Error(`${url} → ${res.status}`);
+      const body = await res.json();
+      if (!body.warming) return body;
+      if (!retryWarming) throw new Error('warming');
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    throw new Error('server did not warm up in time');
   }
 
   function fetchFeed(page) {
@@ -477,7 +485,7 @@
   async function poll() {
     if (document.hidden) return;
     try {
-      const home = await getJSON('/api/home');
+      const home = await getJSON('/api/home', { retryWarming: false });
       try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), home })); } catch { /* quota */ }
       if (state.rowsFingerprint && rowsFingerprint(home) !== state.rowsFingerprint) {
         offerUpdate(home);

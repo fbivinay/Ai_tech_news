@@ -1,10 +1,10 @@
 // Vercel serverless function: GET /api/home — everything the homepage needs
-// in ONE request and ONE consistent data snapshot: billboard hero, trending,
-// category rails, the fixed category taxonomy, and the first grid page.
-const { store, freshen, cacheHeaders } = require('./_shared');
+// in ONE request from ONE consistent snapshot. Always answers instantly;
+// never waits on feed fetching.
+const { store, ensureReadyForRequest, cacheHeaders, warmingResponse } = require('./_shared');
 
 module.exports = async (_req, res) => {
-  await freshen();
+  if (!(await ensureReadyForRequest())) return warmingResponse(res);
   cacheHeaders(res);
   res.json({
     ...store.getRows(),
