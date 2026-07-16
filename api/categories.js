@@ -1,8 +1,8 @@
 // Vercel serverless function: GET /api/categories
-const store = require('../src/store');
+const { store, freshen, cacheHeaders } = require('./_shared');
 
 module.exports = async (_req, res) => {
-  await store.ensureFresh();
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+  await freshen();
+  cacheHeaders(res);
   res.json({ categories: store.getCategories() });
 };

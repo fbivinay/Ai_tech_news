@@ -1,7 +1,8 @@
-/* AI & Tech News frontend.
-   Fast by design: skeleton screens while fetching, an instant repaint from
-   sessionStorage on repeat visits (then silent revalidation), early infinite-
-   scroll prefetch, and GPU-friendly entrance/hover animations. */
+/* AI & Tech News frontend — Netflix-style homepage.
+   Billboard hero + horizontal rails + infinite "Latest" grid.
+   Fast by design: skeleton screens, instant repaint from sessionStorage on
+   repeat visits (then silent revalidation), 60-second live polling with a
+   "New stories" pill, and early infinite-scroll prefetch. */
 
 (() => {
   const state = {
@@ -9,19 +10,22 @@
     category: 'All',
     loading: false,
     hasMore: true,
-    firstIds: null, // fingerprint of what's on screen, for silent revalidation
+    rowsFingerprint: null,
   };
 
-  const CACHE_KEY = 'feed-cache-v1';
-  const CACHE_MAX_AGE_MS = 15 * 60 * 1000;
+  const CACHE_KEY = 'home-cache-v2';
+  const CACHE_MAX_AGE_MS = 10 * 60 * 1000;
+  const POLL_MS = 60 * 1000;
 
   const $ = (id) => document.getElementById(id);
+  const billboardEl = $('billboard');
+  const railsEl = $('rails');
   const feedEl = $('feed');
-  const heroEl = $('hero');
   const loaderEl = $('loader');
   const endNoteEl = $('end-note');
   const emptyNoteEl = $('empty-note');
   const toastEl = $('toast');
+  const newPillEl = $('new-pill');
   const headerEl = document.querySelector('.site-header');
 
   /* ---------- Theme (light by default) ---------- */
@@ -71,10 +75,9 @@
     return node;
   }
 
-  // Fade images in once their pixels have arrived (no pop-in).
-  function fadeInImage(img, container) {
+  function fadeInImage(img, onFail) {
     img.addEventListener('load', () => img.classList.add('loaded'));
-    img.addEventListener('error', () => container.remove());
+    img.addEventListener('error', onFail);
     if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
   }
 
@@ -98,7 +101,7 @@
 
   function makeClickable(node, item) {
     node.addEventListener('click', (event) => {
-      if (event.target.closest('a')) return; // real links handle themselves
+      if (event.target.closest('a')) return;
       openArticle(item);
     });
     node.addEventListener('keydown', (event) => {
@@ -125,206 +128,270 @@
     return row;
   }
 
-  function tagRow(item) {
-    const row = el('div', 'tag-row');
-    row.append(el('span', 'chip cat', item.category));
-    for (const company of (item.companies || []).slice(0, 3)) {
-      row.append(el('span', 'chip', company));
+  /* ---------- Billboard ---------- */
+
+  function renderBillboard(item) {
+    billboardEl.textContent = '';
+    billboardEl.className = 'billboard';
+    if (!item) { billboardEl.hidden = true; return; }
+    billboardEl.hidden = false;
+
+    if (item.image) {
+      const bg = el('div', 'billboard-bg');
+      const img = el('img');
+      img.alt = '';
+      img.fetchPriority = 'high';
+      fadeInImage(img, () => { bg.remove(); billboardEl.classList.add('no-image'); });
+      img.src = item.image;
+      bg.append(img);
+      billboardEl.append(bg);
+    } else {
+      billboardEl.classList.add('no-image');
     }
-    if (item.region && item.region !== 'Global') row.append(el('span', 'chip', `📍 ${item.region}`));
-    return row;
-  }
+    billboardEl.append(el('div', 'billboard-scrim'));
 
-  function readLink(item, label) {
-    const link = el('a', 'read-link');
-    link.href = item.link;
-    link.target = '_blank';
-    link.rel = 'noopener external';
-    link.append(el('span', null, label), el('span', 'arrow', '→'));
-    link.addEventListener('click', () => showExternalNotice(item.sourceName));
-    return link;
-  }
+    const content = el('div', 'billboard-content');
+    content.append(el('span', 'kicker', '🔥 Top Story'));
 
-  /* ---------- Skeleton screens ---------- */
-
-  function skeletonHero() {
-    const wrap = el('div', 'skeleton-hero');
-    const body = el('div', 'sk-body');
-    body.append(el('div', 'sk sk-kicker'));
-    body.append(el('div', 'sk sk-title'), el('div', 'sk sk-title short'));
-    body.append(el('div', 'sk sk-line'), el('div', 'sk sk-line'), el('div', 'sk sk-line short'));
-    body.append(el('div', 'sk sk-meta'));
-    wrap.append(body, el('div', 'sk sk-media'));
-    return wrap;
-  }
-
-  function skeletonCard() {
-    const card = el('div', 'skeleton-card');
-    card.append(
-      el('div', 'sk sk-thumb'),
-      el('div', 'sk sk-title'),
-      el('div', 'sk sk-line'),
-      el('div', 'sk sk-line short'),
-      el('div', 'sk sk-meta'),
-    );
-    return card;
-  }
-
-  function showSkeletons({ withHero }) {
-    if (withHero) {
-      heroEl.hidden = true;
-      heroEl.textContent = '';
-      heroEl.insertAdjacentElement('beforebegin', skeletonHero());
-    }
-    feedEl.textContent = '';
-    const fragment = document.createDocumentFragment();
-    for (let i = 0; i < 6; i++) fragment.append(skeletonCard());
-    feedEl.append(fragment);
-  }
-
-  function clearSkeletons() {
-    document.querySelectorAll('.skeleton-hero').forEach((n) => n.remove());
-    feedEl.querySelectorAll('.skeleton-card').forEach((n) => n.remove());
-  }
-
-  /* ---------- Rendering ---------- */
-
-  function renderHero(item) {
-    heroEl.textContent = '';
-    heroEl.classList.remove('switching');
-    if (!item) { heroEl.hidden = true; return; }
-    heroEl.hidden = false;
-
-    const body = el('div', 'hero-body');
-    body.append(el('div', 'kicker', '🔥 Top Story'));
-
-    const title = el('h1', 'hero-title');
+    const title = el('h1', 'billboard-title');
     const titleLink = el('a', null, item.title);
     titleLink.href = item.link;
     titleLink.target = '_blank';
     titleLink.rel = 'noopener external';
     title.append(titleLink);
-    body.append(title);
+    content.append(title);
 
-    body.append(el('p', 'hero-summary', item.summary));
-    body.append(metaRow(item));
-    body.append(tagRow(item));
-    body.append(readLink(item, 'Read Full Article'));
-    body.append(el('span', 'ext-hint', '↗ External link — opens the original source'));
+    content.append(el('p', 'billboard-summary', item.summary));
+    content.append(metaRow(item));
 
-    heroEl.append(body);
+    const tags = el('div', 'tag-row');
+    tags.append(el('span', 'chip cat', item.category));
+    for (const company of (item.companies || []).slice(0, 3)) tags.append(el('span', 'chip', company));
+    if (item.region && item.region !== 'Global') tags.append(el('span', 'chip', `📍 ${item.region}`));
+    content.append(tags);
 
-    if (item.image) {
-      const media = el('div', 'hero-media');
-      const img = el('img');
-      img.alt = '';
-      img.loading = 'eager';
-      img.fetchPriority = 'high';
-      fadeInImage(img, media);
-      img.src = item.image;
-      media.append(img);
-      heroEl.append(media);
-    }
+    const actions = el('div', 'billboard-actions');
+    const btn = el('a', 'btn-primary');
+    btn.href = item.link;
+    btn.target = '_blank';
+    btn.rel = 'noopener external';
+    btn.append(el('span', 'play', '▶'), el('span', null, 'Read Full Article'));
+    btn.addEventListener('click', () => showExternalNotice(item.sourceName));
+    actions.append(btn, el('span', 'ext-hint', '↗ Opens the original source'));
+    content.append(actions);
 
-    makeClickable(heroEl, item);
+    billboardEl.append(content);
+    makeClickable(billboardEl, item);
   }
 
-  function renderCard(item, indexInBatch) {
-    const card = el('article', 'article-card');
-    card.style.setProperty('--i', Math.min(indexInBatch, 11));
+  /* ---------- Cards ---------- */
+
+  function cardMedia(item) {
+    const media = el('div', 'card-media');
 
     if (item.image) {
-      const thumb = el('div', 'card-thumb');
       const img = el('img');
       img.alt = '';
       img.loading = 'lazy';
-      fadeInImage(img, thumb);
+      fadeInImage(img, () => { img.remove(); media.prepend(placeholder()); });
       img.src = item.image;
-      thumb.append(img);
-      card.append(thumb);
+      media.append(img);
+    } else {
+      media.append(placeholder());
     }
 
+    const overlay = el('div', 'media-overlay');
+    overlay.append(el('p', null, item.summary));
+    media.append(overlay);
+    return media;
+
+    function placeholder() {
+      const ph = el('div', 'media-ph');
+      ph.append(el('span', null, (item.sourceName || '?').slice(0, 1).toUpperCase()));
+      return ph;
+    }
+  }
+
+  function newsCard(item, indexInBatch, rank = null) {
+    const card = el('article', 'news-card');
+    card.style.setProperty('--i', Math.min(indexInBatch, 11));
+
+    if (rank != null) {
+      card.classList.add('ranked');
+      card.append(el('span', 'rank', String(rank)));
+    }
+
+    card.append(cardMedia(item));
+
+    const info = el('div', 'card-info');
     const title = el('h3', 'card-title');
     const titleLink = el('a', null, item.title);
     titleLink.href = item.link;
     titleLink.target = '_blank';
     titleLink.rel = 'noopener external';
     title.append(titleLink);
+    info.append(title, metaRow(item));
 
-    card.append(title, el('p', 'card-summary', item.summary), metaRow(item), tagRow(item), readLink(item, 'Read'));
-    card.append(el('span', 'ext-hint', '↗ Opens original source'));
+    const tags = el('div', 'tag-row');
+    tags.append(el('span', 'chip cat', item.category));
+    if (item.companies?.[0]) tags.append(el('span', 'chip', item.companies[0]));
+    info.append(tags);
+
+    card.append(info);
     makeClickable(card, item);
     return card;
   }
 
-  function renderFirstPage(data) {
-    clearSkeletons();
+  /* ---------- Rails ---------- */
+
+  function buildRail(name, items, { ranked = false } = {}) {
+    const rail = el('section', 'rail');
+
+    const header = el('div', 'rail-header');
+    header.append(el('h2', 'rail-title', name), el('span', 'rail-count', `${items.length} stories`));
+    rail.append(header);
+
+    const viewport = el('div', 'rail-viewport');
+    const track = el('div', 'rail-track');
+    items.forEach((item, i) => track.append(newsCard(item, i, ranked ? i + 1 : null)));
+
+    const prev = el('button', 'rail-arrow prev', '‹');
+    const next = el('button', 'rail-arrow next', '›');
+    prev.type = next.type = 'button';
+    prev.setAttribute('aria-label', `Scroll ${name} back`);
+    next.setAttribute('aria-label', `Scroll ${name} forward`);
+
+    const step = () => Math.round(track.clientWidth * 0.85);
+    prev.addEventListener('click', () => track.scrollBy({ left: -step() }));
+    next.addEventListener('click', () => track.scrollBy({ left: step() }));
+
+    const syncArrows = () => {
+      prev.disabled = track.scrollLeft <= 4;
+      next.disabled = track.scrollLeft >= track.scrollWidth - track.clientWidth - 4;
+    };
+    track.addEventListener('scroll', syncArrows, { passive: true });
+    requestAnimationFrame(syncArrows);
+
+    viewport.append(prev, track, next);
+    rail.append(viewport);
+    return rail;
+  }
+
+  function renderRails(data) {
+    railsEl.textContent = '';
+    if (data.trending?.length) railsEl.append(buildRail('Trending Now', data.trending.slice(0, 10), { ranked: true }));
+    for (const row of data.rows || []) railsEl.append(buildRail(row.name, row.items));
+  }
+
+  function rowsFingerprint(data) {
+    return [data.hero?.id, ...(data.trending || []).map((i) => i.id)].join(',');
+  }
+
+  /* ---------- Skeletons ---------- */
+
+  function showSkeletons() {
+    billboardEl.hidden = true;
+
+    const bb = el('div', 'skeleton-billboard');
+    bb.append(el('div', 'sk sk-kicker'), el('div', 'sk sk-title'), el('div', 'sk sk-title short'),
+      el('div', 'sk sk-line'), el('div', 'sk sk-line short'), el('div', 'sk sk-btn'));
+    billboardEl.insertAdjacentElement('beforebegin', bb);
+
+    railsEl.textContent = '';
+    for (let r = 0; r < 2; r++) {
+      const rail = el('div', 'skeleton-rail');
+      rail.append(el('div', 'sk sk-rail-title'));
+      const cards = el('div', 'sk-cards');
+      for (let i = 0; i < 5; i++) {
+        const c = el('div', 'sk-card');
+        c.append(el('div', 'sk sk-thumb'), el('div', 'sk sk-caption'));
+        cards.append(c);
+      }
+      rail.append(cards);
+      railsEl.append(rail);
+    }
+
     feedEl.textContent = '';
-    feedEl.classList.remove('switching');
-    renderHero(data.hero);
-    if (state.category !== 'All') heroEl.hidden = true;
-
-    const fragment = document.createDocumentFragment();
-    data.items.forEach((item, i) => fragment.append(renderCard(item, i)));
-    feedEl.append(fragment);
-
-    state.firstIds = fingerprint(data);
-    state.hasMore = data.hasMore;
-    state.page = 2;
-
-    endNoteEl.hidden = true;
-    emptyNoteEl.hidden = true;
-    if (!data.hasMore) {
-      (feedEl.children.length === 0 ? emptyNoteEl : endNoteEl).hidden = false;
+    for (let i = 0; i < 8; i++) {
+      const c = el('div', 'skeleton-grid-card');
+      c.append(el('div', 'sk sk-thumb'), el('div', 'sk sk-caption'), el('div', 'sk sk-caption short'));
+      feedEl.append(c);
     }
   }
 
-  function fingerprint(data) {
-    return [data.hero?.id, ...data.items.map((i) => i.id)].join(',');
+  function clearSkeletons() {
+    document.querySelectorAll('.skeleton-billboard, .skeleton-rail').forEach((n) => n.remove());
+    feedEl.querySelectorAll('.skeleton-grid-card').forEach((n) => n.remove());
+  }
+
+  /* ---------- Rendering: full home ---------- */
+
+  function renderHome(rows, feed) {
+    clearSkeletons();
+    renderBillboard(rows.hero);
+    renderRails(rows);
+    state.rowsFingerprint = rowsFingerprint(rows);
+    renderGridFirstPage(feed);
+  }
+
+  function renderGridFirstPage(data) {
+    feedEl.textContent = '';
+    feedEl.classList.remove('switching');
+    const fragment = document.createDocumentFragment();
+    data.items.forEach((item, i) => fragment.append(newsCard(item, i)));
+    feedEl.append(fragment);
+
+    state.hasMore = data.hasMore;
+    state.page = 2;
+    endNoteEl.hidden = true;
+    emptyNoteEl.hidden = true;
+    if (!data.hasMore) (feedEl.children.length === 0 ? emptyNoteEl : endNoteEl).hidden = false;
   }
 
   /* ---------- Data loading ---------- */
 
-  async function fetchFeed(page) {
-    const params = new URLSearchParams({ page, limit: 12 });
-    if (state.category !== 'All') params.set('category', state.category);
-    const res = await fetch(`/api/feed?${params}`);
-    if (!res.ok) throw new Error(`feed ${res.status}`);
+  async function getJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${url} → ${res.status}`);
     return res.json();
   }
 
-  // Initial load: paint the cached copy instantly if we have one, then
-  // fetch fresh data and repaint only if the news actually changed.
+  function fetchFeed(page) {
+    const params = new URLSearchParams({ page, limit: 12 });
+    if (state.category !== 'All') params.set('category', state.category);
+    return getJSON(`/api/feed?${params}`);
+  }
+
   async function boot() {
     let painted = false;
 
     try {
       const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
       if (cached && Date.now() - cached.at < CACHE_MAX_AGE_MS) {
-        renderFirstPage(cached.data);
+        renderHome(cached.rows, cached.feed);
         renderCategories(cached.categories);
         painted = true;
       }
     } catch { /* corrupt cache — ignore */ }
 
-    if (!painted) showSkeletons({ withHero: true });
+    if (!painted) showSkeletons();
 
     try {
-      const [data, categories] = await Promise.all([
+      const [rows, feed, categories] = await Promise.all([
+        getJSON('/api/rows'),
         fetchFeed(1),
-        fetch('/api/categories').then((r) => r.json()).then((j) => j.categories),
+        getJSON('/api/categories').then((j) => j.categories),
       ]);
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data, categories }));
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rows, feed, categories }));
 
-      if (!painted || fingerprint(data) !== state.firstIds) {
-        renderFirstPage(data);
+      if (!painted || rowsFingerprint(rows) !== state.rowsFingerprint) {
+        renderHome(rows, feed);
         renderCategories(categories);
       } else {
-        // Same stories — just refresh pagination state silently.
-        state.hasMore = data.hasMore;
+        state.hasMore = feed.hasMore;
       }
     } catch (err) {
-      console.error('feed load failed', err);
+      console.error('boot failed', err);
       clearSkeletons();
       if (!painted) emptyNoteEl.hidden = false;
     }
@@ -338,9 +405,8 @@
     try {
       const data = await fetchFeed(state.page);
       const fragment = document.createDocumentFragment();
-      data.items.forEach((item, i) => fragment.append(renderCard(item, i)));
+      data.items.forEach((item, i) => fragment.append(newsCard(item, i)));
       feedEl.append(fragment);
-
       state.hasMore = data.hasMore;
       state.page += 1;
       if (!data.hasMore) endNoteEl.hidden = false;
@@ -360,21 +426,14 @@
     endNoteEl.hidden = true;
     emptyNoteEl.hidden = true;
 
-    // Quick fade-out, then skeletons while the new category loads.
     feedEl.classList.add('switching');
-    heroEl.classList.add('switching');
-    window.scrollTo({ top: 0 });
     await new Promise((r) => setTimeout(r, 160));
-
-    heroEl.hidden = true;
-    showSkeletons({ withHero: name === 'All' });
 
     try {
       const data = await fetchFeed(1);
-      renderFirstPage(data);
+      renderGridFirstPage(data);
     } catch (err) {
       console.error('category load failed', err);
-      clearSkeletons();
       emptyNoteEl.hidden = false;
     }
   }
@@ -398,7 +457,35 @@
     }
   }
 
-  /* ---------- Infinite scroll (prefetches well before the bottom) ---------- */
+  /* ---------- Live updates: poll every minute ---------- */
+
+  async function poll() {
+    if (document.hidden) return;
+    try {
+      const rows = await getJSON('/api/rows');
+      if (state.rowsFingerprint && rowsFingerprint(rows) !== state.rowsFingerprint) {
+        newPillEl.classList.add('show');
+        newPillEl.onclick = async () => {
+          newPillEl.classList.remove('show');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          state.category = 'All';
+          state.page = 1;
+          state.hasMore = true;
+          const [feed, categories] = await Promise.all([
+            fetchFeed(1),
+            getJSON('/api/categories').then((j) => j.categories),
+          ]);
+          renderHome(rows, feed);
+          renderCategories(categories);
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rows, feed, categories }));
+        };
+      }
+    } catch { /* transient network issue — next tick will retry */ }
+  }
+  setInterval(poll, POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+
+  /* ---------- Infinite scroll ---------- */
 
   const observer = new IntersectionObserver(
     (entries) => { if (entries[0].isIntersecting) loadNextPage(); },
