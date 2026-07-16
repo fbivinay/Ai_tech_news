@@ -1,5 +1,7 @@
-/* AI & Tech News frontend: renders the hero + card feed, infinite scroll,
-   category filtering, external-link notice, and a light-first theme toggle. */
+/* AI & Tech News frontend.
+   Fast by design: skeleton screens while fetching, an instant repaint from
+   sessionStorage on repeat visits (then silent revalidation), early infinite-
+   scroll prefetch, and GPU-friendly entrance/hover animations. */
 
 (() => {
   const state = {
@@ -7,7 +9,11 @@
     category: 'All',
     loading: false,
     hasMore: true,
+    firstIds: null, // fingerprint of what's on screen, for silent revalidation
   };
+
+  const CACHE_KEY = 'feed-cache-v1';
+  const CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 
   const $ = (id) => document.getElementById(id);
   const feedEl = $('feed');
@@ -16,17 +22,29 @@
   const endNoteEl = $('end-note');
   const emptyNoteEl = $('empty-note');
   const toastEl = $('toast');
+  const headerEl = document.querySelector('.site-header');
 
   /* ---------- Theme (light by default) ---------- */
 
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') document.documentElement.dataset.theme = 'dark';
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
 
   $('theme-toggle').addEventListener('click', () => {
     const dark = document.documentElement.dataset.theme === 'dark';
     document.documentElement.dataset.theme = dark ? '' : 'dark';
     localStorage.setItem('theme', dark ? 'light' : 'dark');
   });
+
+  /* ---------- Header shadow on scroll ---------- */
+
+  let scrollTicking = false;
+  window.addEventListener('scroll', () => {
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      headerEl.classList.toggle('scrolled', window.scrollY > 8);
+      scrollTicking = false;
+    });
+  }, { passive: true });
 
   /* ---------- Helpers ---------- */
 
@@ -51,6 +69,13 @@
     if (className) node.className = className;
     if (text != null) node.textContent = text;
     return node;
+  }
+
+  // Fade images in once their pixels have arrived (no pop-in).
+  function fadeInImage(img, container) {
+    img.addEventListener('load', () => img.classList.add('loaded'));
+    img.addEventListener('error', () => container.remove());
+    if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
   }
 
   let toastTimer = null;
@@ -115,15 +140,58 @@
     link.href = item.link;
     link.target = '_blank';
     link.rel = 'noopener external';
-    link.append(el('span', null, label), el('span', null, '→'));
+    link.append(el('span', null, label), el('span', 'arrow', '→'));
     link.addEventListener('click', () => showExternalNotice(item.sourceName));
     return link;
+  }
+
+  /* ---------- Skeleton screens ---------- */
+
+  function skeletonHero() {
+    const wrap = el('div', 'skeleton-hero');
+    const body = el('div', 'sk-body');
+    body.append(el('div', 'sk sk-kicker'));
+    body.append(el('div', 'sk sk-title'), el('div', 'sk sk-title short'));
+    body.append(el('div', 'sk sk-line'), el('div', 'sk sk-line'), el('div', 'sk sk-line short'));
+    body.append(el('div', 'sk sk-meta'));
+    wrap.append(body, el('div', 'sk sk-media'));
+    return wrap;
+  }
+
+  function skeletonCard() {
+    const card = el('div', 'skeleton-card');
+    card.append(
+      el('div', 'sk sk-thumb'),
+      el('div', 'sk sk-title'),
+      el('div', 'sk sk-line'),
+      el('div', 'sk sk-line short'),
+      el('div', 'sk sk-meta'),
+    );
+    return card;
+  }
+
+  function showSkeletons({ withHero }) {
+    if (withHero) {
+      heroEl.hidden = true;
+      heroEl.textContent = '';
+      heroEl.insertAdjacentElement('beforebegin', skeletonHero());
+    }
+    feedEl.textContent = '';
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < 6; i++) fragment.append(skeletonCard());
+    feedEl.append(fragment);
+  }
+
+  function clearSkeletons() {
+    document.querySelectorAll('.skeleton-hero').forEach((n) => n.remove());
+    feedEl.querySelectorAll('.skeleton-card').forEach((n) => n.remove());
   }
 
   /* ---------- Rendering ---------- */
 
   function renderHero(item) {
     heroEl.textContent = '';
+    heroEl.classList.remove('switching');
     if (!item) { heroEl.hidden = true; return; }
     heroEl.hidden = false;
 
@@ -149,10 +217,11 @@
     if (item.image) {
       const media = el('div', 'hero-media');
       const img = el('img');
-      img.src = item.image;
       img.alt = '';
       img.loading = 'eager';
-      img.addEventListener('error', () => media.remove());
+      img.fetchPriority = 'high';
+      fadeInImage(img, media);
+      img.src = item.image;
       media.append(img);
       heroEl.append(media);
     }
@@ -160,16 +229,17 @@
     makeClickable(heroEl, item);
   }
 
-  function renderCard(item) {
+  function renderCard(item, indexInBatch) {
     const card = el('article', 'article-card');
+    card.style.setProperty('--i', Math.min(indexInBatch, 11));
 
     if (item.image) {
       const thumb = el('div', 'card-thumb');
       const img = el('img');
-      img.src = item.image;
       img.alt = '';
       img.loading = 'lazy';
-      img.addEventListener('error', () => thumb.remove());
+      fadeInImage(img, thumb);
+      img.src = item.image;
       thumb.append(img);
       card.append(thumb);
     }
@@ -187,37 +257,93 @@
     return card;
   }
 
+  function renderFirstPage(data) {
+    clearSkeletons();
+    feedEl.textContent = '';
+    feedEl.classList.remove('switching');
+    renderHero(data.hero);
+    if (state.category !== 'All') heroEl.hidden = true;
+
+    const fragment = document.createDocumentFragment();
+    data.items.forEach((item, i) => fragment.append(renderCard(item, i)));
+    feedEl.append(fragment);
+
+    state.firstIds = fingerprint(data);
+    state.hasMore = data.hasMore;
+    state.page = 2;
+
+    endNoteEl.hidden = true;
+    emptyNoteEl.hidden = true;
+    if (!data.hasMore) {
+      (feedEl.children.length === 0 ? emptyNoteEl : endNoteEl).hidden = false;
+    }
+  }
+
+  function fingerprint(data) {
+    return [data.hero?.id, ...data.items.map((i) => i.id)].join(',');
+  }
+
   /* ---------- Data loading ---------- */
 
-  async function loadPage() {
+  async function fetchFeed(page) {
+    const params = new URLSearchParams({ page, limit: 12 });
+    if (state.category !== 'All') params.set('category', state.category);
+    const res = await fetch(`/api/feed?${params}`);
+    if (!res.ok) throw new Error(`feed ${res.status}`);
+    return res.json();
+  }
+
+  // Initial load: paint the cached copy instantly if we have one, then
+  // fetch fresh data and repaint only if the news actually changed.
+  async function boot() {
+    let painted = false;
+
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
+      if (cached && Date.now() - cached.at < CACHE_MAX_AGE_MS) {
+        renderFirstPage(cached.data);
+        renderCategories(cached.categories);
+        painted = true;
+      }
+    } catch { /* corrupt cache — ignore */ }
+
+    if (!painted) showSkeletons({ withHero: true });
+
+    try {
+      const [data, categories] = await Promise.all([
+        fetchFeed(1),
+        fetch('/api/categories').then((r) => r.json()).then((j) => j.categories),
+      ]);
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data, categories }));
+
+      if (!painted || fingerprint(data) !== state.firstIds) {
+        renderFirstPage(data);
+        renderCategories(categories);
+      } else {
+        // Same stories — just refresh pagination state silently.
+        state.hasMore = data.hasMore;
+      }
+    } catch (err) {
+      console.error('feed load failed', err);
+      clearSkeletons();
+      if (!painted) emptyNoteEl.hidden = false;
+    }
+  }
+
+  async function loadNextPage() {
     if (state.loading || !state.hasMore) return;
     state.loading = true;
     loaderEl.hidden = false;
-    endNoteEl.hidden = true;
-    emptyNoteEl.hidden = true;
 
     try {
-      const params = new URLSearchParams({ page: state.page, limit: 12 });
-      if (state.category !== 'All') params.set('category', state.category);
-      const res = await fetch(`/api/feed?${params}`);
-      const data = await res.json();
-
-      if (state.page === 1) {
-        feedEl.textContent = '';
-        renderHero(data.hero);
-        if (state.category !== 'All') heroEl.hidden = true;
-      }
-
+      const data = await fetchFeed(state.page);
       const fragment = document.createDocumentFragment();
-      for (const item of data.items) fragment.append(renderCard(item));
+      data.items.forEach((item, i) => fragment.append(renderCard(item, i)));
       feedEl.append(fragment);
 
       state.hasMore = data.hasMore;
       state.page += 1;
-
-      if (!data.hasMore) {
-        (feedEl.children.length === 0 ? emptyNoteEl : endNoteEl).hidden = false;
-      }
+      if (!data.hasMore) endNoteEl.hidden = false;
     } catch (err) {
       console.error('feed load failed', err);
     } finally {
@@ -226,45 +352,61 @@
     }
   }
 
-  /* ---------- Categories ---------- */
+  async function switchCategory(name) {
+    state.category = name;
+    state.page = 1;
+    state.hasMore = true;
+    state.loading = false;
+    endNoteEl.hidden = true;
+    emptyNoteEl.hidden = true;
 
-  async function loadCategories() {
+    // Quick fade-out, then skeletons while the new category loads.
+    feedEl.classList.add('switching');
+    heroEl.classList.add('switching');
+    window.scrollTo({ top: 0 });
+    await new Promise((r) => setTimeout(r, 160));
+
+    heroEl.hidden = true;
+    showSkeletons({ withHero: name === 'All' });
+
     try {
-      const res = await fetch('/api/categories');
-      const { categories } = await res.json();
-      const bar = $('category-bar');
-      bar.textContent = '';
-
-      const all = [{ name: 'All' }, ...categories.slice(0, 9)];
-      for (const { name } of all) {
-        const chip = el('button', 'category-chip', name);
-        chip.type = 'button';
-        if (name === state.category) chip.classList.add('active');
-        chip.addEventListener('click', () => {
-          state.category = name;
-          state.page = 1;
-          state.hasMore = true;
-          bar.querySelectorAll('.category-chip').forEach((c) => c.classList.toggle('active', c === chip));
-          window.scrollTo({ top: 0 });
-          loadPage();
-        });
-        bar.append(chip);
-      }
+      const data = await fetchFeed(1);
+      renderFirstPage(data);
     } catch (err) {
-      console.error('categories load failed', err);
+      console.error('category load failed', err);
+      clearSkeletons();
+      emptyNoteEl.hidden = false;
     }
   }
 
-  /* ---------- Infinite scroll ---------- */
+  /* ---------- Categories ---------- */
+
+  function renderCategories(categories) {
+    const bar = $('category-bar');
+    bar.textContent = '';
+    const all = [{ name: 'All' }, ...categories.slice(0, 9)];
+    for (const { name } of all) {
+      const chip = el('button', 'category-chip', name);
+      chip.type = 'button';
+      if (name === state.category) chip.classList.add('active');
+      chip.addEventListener('click', () => {
+        if (state.category === name) return;
+        bar.querySelectorAll('.category-chip').forEach((c) => c.classList.toggle('active', c === chip));
+        switchCategory(name);
+      });
+      bar.append(chip);
+    }
+  }
+
+  /* ---------- Infinite scroll (prefetches well before the bottom) ---------- */
 
   const observer = new IntersectionObserver(
-    (entries) => { if (entries[0].isIntersecting) loadPage(); },
-    { rootMargin: '600px 0px' },
+    (entries) => { if (entries[0].isIntersecting) loadNextPage(); },
+    { rootMargin: '1200px 0px' },
   );
   observer.observe($('sentinel'));
 
   /* ---------- Boot ---------- */
 
-  loadCategories();
-  loadPage();
+  boot();
 })();
