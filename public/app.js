@@ -1,9 +1,9 @@
 /* AI & Tech News frontend — Netflix-style homepage.
-   Billboard hero + horizontal rails + infinite "Latest" grid.
+   Billboard hero + horizontal rails + "Latest" grid with Load More button.
    Fast by design: one /api/home request per load, skeleton screens, instant
    repaint from localStorage on repeat visits, 60-second live polling with a
-   "New stories" pill (the page never reshuffles itself), and early
-   infinite-scroll prefetch. */
+   "New stories" pill (the page never reshuffles itself), and explicit
+   load-more pagination. */
 
 (() => {
   const state = {
@@ -22,11 +22,11 @@
   const billboardEl = $('billboard');
   const railsEl = $('rails');
   const feedEl = $('feed');
-  const loaderEl = $('loader');
   const endNoteEl = $('end-note');
   const emptyNoteEl = $('empty-note');
   const toastEl = $('toast');
   const newPillEl = $('new-pill');
+  const loadMoreBtn = $('load-more-btn');
   const headerEl = document.querySelector('.site-header');
 
   /* ---------- Theme (light by default) ---------- */
@@ -414,6 +414,7 @@
     state.page = 2;
     endNoteEl.hidden = true;
     emptyNoteEl.hidden = true;
+    loadMoreBtn.hidden = !state.hasMore || feedEl.children.length === 0;
     if (!data.hasMore) (feedEl.children.length === 0 ? emptyNoteEl : endNoteEl).hidden = false;
   }
 
@@ -475,7 +476,9 @@
   async function loadNextPage() {
     if (state.loading || !state.hasMore) return;
     state.loading = true;
-    loaderEl.hidden = false;
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.textContent = '';
+    loadMoreBtn.append(el('span', 'spinner'), ' Loading…');
 
     try {
       const data = await fetchFeed(state.page);
@@ -484,12 +487,16 @@
       feedEl.append(fragment);
       state.hasMore = data.hasMore;
       state.page += 1;
-      if (!data.hasMore) endNoteEl.hidden = false;
+      if (!data.hasMore) {
+        loadMoreBtn.hidden = true;
+        endNoteEl.hidden = false;
+      }
     } catch (err) {
       console.error('feed load failed', err);
     } finally {
       state.loading = false;
-      loaderEl.hidden = true;
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.textContent = 'Load More Stories';
     }
   }
 
@@ -500,6 +507,7 @@
     state.loading = false;
     endNoteEl.hidden = true;
     emptyNoteEl.hidden = true;
+    loadMoreBtn.hidden = true;
 
     feedEl.classList.add('switching');
     await new Promise((r) => setTimeout(r, 160));
@@ -548,13 +556,9 @@
   setInterval(poll, POLL_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
-  /* ---------- Infinite scroll ---------- */
+  /* ---------- Load More button ---------- */
 
-  const observer = new IntersectionObserver(
-    (entries) => { if (entries[0].isIntersecting) loadNextPage(); },
-    { rootMargin: '1200px 0px' },
-  );
-  observer.observe($('sentinel'));
+  loadMoreBtn.addEventListener('click', loadNextPage);
 
   /* ---------- Boot ---------- */
 
