@@ -12,7 +12,14 @@ const app = express();
 
 app.disable('x-powered-by');
 app.use(compression());
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '5m' }));
+// HTML must always revalidate so asset version bumps (app.js?v=N) reach every
+// open tab; the versioned JS/CSS themselves can be cached briefly.
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '5m',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+  },
+}));
 
 // Paginated feed: /api/feed?page=1&limit=12&category=AI%20Models
 app.get('/api/feed', (req, res) => {
