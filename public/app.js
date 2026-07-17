@@ -245,6 +245,24 @@
 
   /* ---------- Rails ---------- */
 
+  // Native lazy loading never fetches cards that sit off-screen inside a
+  // horizontal track, so swiping a rail used to reveal gray boxes waiting on
+  // the network. Pre-warm every image in a rail once the rail itself comes
+  // near the viewport.
+  let railWarm = null;
+
+  function warmRailImages(railsRoot) {
+    railWarm?.disconnect();
+    railWarm = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.querySelectorAll('img[loading="lazy"]').forEach((img) => { img.loading = 'eager'; });
+        railWarm.unobserve(entry.target);
+      }
+    }, { rootMargin: '600px 0px' });
+    railsRoot.querySelectorAll('.rail').forEach((rail) => railWarm.observe(rail));
+  }
+
   function buildRail(name, items, { ranked = false } = {}) {
     const rail = el('section', 'rail');
 
@@ -294,6 +312,7 @@
       rail.id = `section-${slugify(row.name)}`;
       railsEl.append(rail);
     }
+    warmRailImages(railsEl);
   }
 
   /* ---------- Section navigation (sticky, with scrollspy) ---------- */
