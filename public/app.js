@@ -77,9 +77,27 @@
     return node;
   }
 
-  function fadeInImage(img, onFail) {
+  // Publisher images are hotlinked originals: often multi-MB, sometimes
+  // behind referrer-based hotlink blocks, sometimes plain http (which the
+  // browser blocks on an https page). Route them through Vercel's image
+  // optimizer — fetched server-side, resized + recompressed to webp/avif
+  // (far under 500 KB), cached at the edge. Off on localhost, where the
+  // optimizer endpoint doesn't exist.
+  const IMG_OPT = !['localhost', '127.0.0.1'].includes(location.hostname);
+  function imgSrc(url, width) {
+    if (!IMG_OPT || !/^https?:/i.test(url)) return url;
+    return `/_vercel/image?url=${encodeURIComponent(url)}&w=${width}&q=75`;
+  }
+
+  function setImage(img, url, width, onFail) {
     img.addEventListener('load', () => img.classList.add('loaded'));
-    img.addEventListener('error', onFail);
+    img.addEventListener('error', () => {
+      // Optimizer couldn't fetch this one (bot-blocking CDN, dead link…):
+      // retry the raw publisher URL once before giving up.
+      if (img.src !== url && /^https:/i.test(url)) { img.src = url; return; }
+      onFail();
+    });
+    img.src = imgSrc(url, width);
     if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
   }
 
@@ -143,8 +161,7 @@
       const img = el('img');
       img.alt = '';
       img.fetchPriority = 'high';
-      fadeInImage(img, () => { bg.remove(); billboardEl.classList.add('no-image'); });
-      img.src = item.image;
+      setImage(img, item.image, 1600, () => { bg.remove(); billboardEl.classList.add('no-image'); });
       bg.append(img);
       billboardEl.append(bg);
     } else {
@@ -195,8 +212,7 @@
       const img = el('img');
       img.alt = '';
       img.loading = 'lazy';
-      fadeInImage(img, () => { img.remove(); media.prepend(placeholder()); });
-      img.src = item.image;
+      setImage(img, item.image, 480, () => { img.remove(); media.prepend(placeholder()); });
       media.append(img);
     } else {
       media.append(placeholder());
