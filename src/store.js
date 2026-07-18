@@ -80,6 +80,9 @@ function extractImage(entry) {
   );
 }
 
+// Several publishers 403 non-browser user agents on their public endpoints.
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
 async function fetchFeed(source) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -87,8 +90,7 @@ async function fetchFeed(source) {
     const res = await fetch(source.url, {
       signal: controller.signal,
       headers: {
-        // Several publishers 403 non-browser user agents on their public feeds.
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        'user-agent': BROWSER_UA,
         accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
       },
     });
@@ -98,6 +100,37 @@ async function fetchFeed(source) {
     // malformed XML that the strict parser would otherwise reject outright.
     const sanitized = xml.replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
     return await parser.parseString(sanitized);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Some feeds (TechCrunch, CNBC, Bleeping Computer…) ship no image tags at
+// all — ~20% of homepage cards used to be gray placeholders. For those,
+// pull the og:image / twitter:image meta tag from the article page.
+// Compliance note: only the <meta> thumbnail URL is extracted; the page
+// body is never stored or displayed.
+const OG_LOOKUPS_PER_REFRESH = 20;
+const OG_TIMEOUT_MS = 3500;
+
+async function fetchOgImage(link) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OG_TIMEOUT_MS);
+  try {
+    const res = await fetch(link, {
+      signal: controller.signal,
+      headers: { 'user-agent': BROWSER_UA, accept: 'text/html' },
+    });
+    if (!res.ok) return null;
+    const head = (await res.text()).slice(0, 200000);
+    const m =
+      head.match(/<meta[^>]+(?:property|name)=["'](?:og:image(?::url)?|twitter:image)["'][^>]*content=["']([^"']+)["']/i) ||
+      head.match(/<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["'](?:og:image(?::url)?|twitter:image)["']/i);
+    if (!m) return null;
+    const url = new URL(m[1].replace(/&amp;/g, '&'), link).toString();
+    return /^https?:/i.test(url) ? url : null;
+  } catch {
+    return null;
   } finally {
     clearTimeout(timer);
   }
@@ -188,7 +221,16 @@ async function doRefresh({ maxSummaryBatches = Infinity } = {}) {
   const merged = new Map();
   for (const item of incoming) {
     const existing = state.byId.get(item.id);
-    const record = existing && existing.summarySource === 'ai' ? existing : { ...item, summary: existing?.summary || null, summarySource: existing?.summarySource || null };
+    // Carry over what past refreshes already earned for this story: the AI
+    // summary and any og:image looked up from the article page (the feed
+    // entry itself still has image: null for those).
+    const record = existing && existing.summarySource === 'ai' ? existing : {
+      ...item,
+      image: item.image || existing?.image || null,
+      imageChecked: existing?.imageChecked || false,
+      summary: existing?.summary || null,
+      summarySource: existing?.summarySource || null,
+    };
     const titleKey = dedupeTitleKey(record.title);
     if (merged.has(record.id) || titleKeys.has(titleKey)) continue;
     titleKeys.add(titleKey);
@@ -209,6 +251,18 @@ async function doRefresh({ maxSummaryBatches = Infinity } = {}) {
   }
 
   const items = [...merged.values()];
+
+  // Fill in missing card images from article og:image tags — newest first,
+  // capped per refresh, each marked so a story is only ever looked up once.
+  const missingImage = items
+    .filter((item) => !item.image && !item.imageChecked)
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+    .slice(0, OG_LOOKUPS_PER_REFRESH);
+  await Promise.allSettled(missingImage.map(async (item) => {
+    item.image = await fetchOgImage(item.link);
+    item.imageChecked = true;
+  }));
+
   await summarizeAll(items, { maxBatches: maxSummaryBatches });
 
   const sourceWeights = Object.fromEntries(SOURCES.map((s) => [s.name, s.weight]));
