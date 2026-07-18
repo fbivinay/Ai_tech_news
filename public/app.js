@@ -12,6 +12,7 @@
     loading: false,
     hasMore: true,
     rowsFingerprint: null,
+    lastRefresh: null,
   };
 
   const CACHE_KEY = 'home-cache-v3';
@@ -405,6 +406,7 @@
     renderCategories(home.categories);
     renderSectionNav();
     state.rowsFingerprint = rowsFingerprint(home);
+    state.lastRefresh = home.lastRefresh || null;
     renderGridFirstPage(home.feed);
   }
 
@@ -474,14 +476,19 @@
     if (!painted) showSkeletons();
 
     // One request, one consistent snapshot — no cross-endpoint mismatches.
+    // fresh=1 skips the CDN cache and makes the server refresh its feeds
+    // first if its data is stale, so the first paint is always the latest.
     try {
-      const home = await getJSON('/api/home');
+      const home = await getJSON('/api/home?fresh=1');
       try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), home })); } catch { /* quota */ }
 
       if (!painted) {
         renderHome(home);
       } else if (rowsFingerprint(home) !== state.rowsFingerprint) {
-        offerUpdate(home); // stable page + pill, instead of a visible reshuffle
+        // The visitor just landed on a repaint of their last visit; swap in
+        // the latest news directly unless they've already scrolled into it.
+        if (window.scrollY < 400) renderHome(home);
+        else offerUpdate(home);
       } else {
         state.hasMore = home.feed.hasMore;
       }
@@ -566,6 +573,9 @@
     if (document.hidden) return;
     try {
       const home = await getJSON('/api/home', { retryWarming: false });
+      // The CDN may hand back a copy OLDER than what the fresh boot request
+      // painted — never cache or offer a downgrade.
+      if (home.lastRefresh && state.lastRefresh && new Date(home.lastRefresh) <= new Date(state.lastRefresh)) return;
       try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), home })); } catch { /* quota */ }
       if (state.rowsFingerprint && rowsFingerprint(home) !== state.rowsFingerprint) {
         offerUpdate(home);

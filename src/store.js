@@ -146,75 +146,99 @@ function dedupeTitleKey(title) {
   return title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 10).join(' ');
 }
 
-async function refresh({ maxSummaryBatches = Infinity } = {}) {
-  if (state.refreshing) return;
+let refreshPromise = null;
+
+function refresh(options = {}) {
+  // Callers awaiting a refresh that's already in flight share its promise
+  // instead of silently getting nothing.
+  if (state.refreshing) return refreshPromise;
   state.refreshing = true;
-  try {
-    const results = await Promise.allSettled(SOURCES.map((source) => fetchFeed(source)));
-
-    const incoming = [];
-    results.forEach((result, i) => {
-      const source = SOURCES[i];
-      if (result.status === 'fulfilled') {
-        const entries = (result.value.items || []).slice(0, MAX_ITEMS_PER_SOURCE);
-        let added = 0;
-        for (const entry of entries) {
-          const item = normalizeEntry(entry, source);
-          if (item) {
-            incoming.push(item);
-            added++;
-          }
-        }
-        state.sourceStatus[source.name] = { ok: true, items: added, at: new Date().toISOString() };
-      } else {
-        state.sourceStatus[source.name] = { ok: false, error: result.reason?.message, at: new Date().toISOString() };
-        console.warn(`[refresh] ${source.name}: ${result.reason?.message}`);
-      }
-    });
-
-    // Merge, keeping already-summarized versions of known items.
-    const titleKeys = new Set();
-    const merged = new Map();
-    for (const item of incoming) {
-      const existing = state.byId.get(item.id);
-      const record = existing && existing.summarySource === 'ai' ? existing : { ...item, summary: existing?.summary || null, summarySource: existing?.summarySource || null };
-      const titleKey = dedupeTitleKey(record.title);
-      if (merged.has(record.id) || titleKeys.has(titleKey)) continue;
-      titleKeys.add(titleKey);
-      merged.set(record.id, record);
-    }
-
-    // Re-add stories we already know about but that this fetch round didn't
-    // return (a source timed out, got rate-limited, or the item scrolled off
-    // its feed). Without this, a transient source failure makes its stories —
-    // and sometimes an entire section — vanish until the next good fetch.
-    for (const item of state.items) {
-      if (merged.has(item.id)) continue;
-      if (Date.now() - new Date(item.publishedAt).getTime() > MAX_AGE_DAYS * 864e5) continue;
-      const titleKey = dedupeTitleKey(item.title);
-      if (titleKeys.has(titleKey)) continue;
-      titleKeys.add(titleKey);
-      merged.set(item.id, item);
-    }
-
-    const items = [...merged.values()];
-    await summarizeAll(items, { maxBatches: maxSummaryBatches });
-
-    const sourceWeights = Object.fromEntries(SOURCES.map((s) => [s.name, s.weight]));
-    for (const item of items) {
-      item.score = scoreItem(item, sourceWeights[item.sourceName]);
-    }
-
-    items.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-    items.length = Math.min(items.length, 800); // bound memory / payloads
-
-    state.items = items;
-    state.byId = new Map(items.map((item) => [item.id, item]));
-    state.lastRefresh = new Date().toISOString();
-    console.log(`[refresh] ${items.length} items from ${SOURCES.length} sources (AI summaries: ${aiEnabled() ? 'on' : 'off — extractive fallback'})`);
-  } finally {
+  refreshPromise = doRefresh(options).finally(() => {
     state.refreshing = false;
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+async function doRefresh({ maxSummaryBatches = Infinity } = {}) {
+  const results = await Promise.allSettled(SOURCES.map((source) => fetchFeed(source)));
+
+  const incoming = [];
+  results.forEach((result, i) => {
+    const source = SOURCES[i];
+    if (result.status === 'fulfilled') {
+      const entries = (result.value.items || []).slice(0, MAX_ITEMS_PER_SOURCE);
+      let added = 0;
+      for (const entry of entries) {
+        const item = normalizeEntry(entry, source);
+        if (item) {
+          incoming.push(item);
+          added++;
+        }
+      }
+      state.sourceStatus[source.name] = { ok: true, items: added, at: new Date().toISOString() };
+    } else {
+      state.sourceStatus[source.name] = { ok: false, error: result.reason?.message, at: new Date().toISOString() };
+      console.warn(`[refresh] ${source.name}: ${result.reason?.message}`);
+    }
+  });
+
+  // Merge, keeping already-summarized versions of known items.
+  const titleKeys = new Set();
+  const merged = new Map();
+  for (const item of incoming) {
+    const existing = state.byId.get(item.id);
+    const record = existing && existing.summarySource === 'ai' ? existing : { ...item, summary: existing?.summary || null, summarySource: existing?.summarySource || null };
+    const titleKey = dedupeTitleKey(record.title);
+    if (merged.has(record.id) || titleKeys.has(titleKey)) continue;
+    titleKeys.add(titleKey);
+    merged.set(record.id, record);
   }
+
+  // Re-add stories we already know about but that this fetch round didn't
+  // return (a source timed out, got rate-limited, or the item scrolled off
+  // its feed). Without this, a transient source failure makes its stories —
+  // and sometimes an entire section — vanish until the next good fetch.
+  for (const item of state.items) {
+    if (merged.has(item.id)) continue;
+    if (Date.now() - new Date(item.publishedAt).getTime() > MAX_AGE_DAYS * 864e5) continue;
+    const titleKey = dedupeTitleKey(item.title);
+    if (titleKeys.has(titleKey)) continue;
+    titleKeys.add(titleKey);
+    merged.set(item.id, item);
+  }
+
+  const items = [...merged.values()];
+  await summarizeAll(items, { maxBatches: maxSummaryBatches });
+
+  const sourceWeights = Object.fromEntries(SOURCES.map((s) => [s.name, s.weight]));
+  for (const item of items) {
+    item.score = scoreItem(item, sourceWeights[item.sourceName]);
+  }
+
+  items.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  items.length = Math.min(items.length, 800); // bound memory / payloads
+
+  state.items = items;
+  state.byId = new Map(items.map((item) => [item.id, item]));
+  state.lastRefresh = new Date().toISOString();
+  console.log(`[refresh] ${items.length} items from ${SOURCES.length} sources (AI summaries: ${aiEnabled() ? 'on' : 'off — extractive fallback'})`);
+}
+
+// First-load freshness guarantee: if the data in hand is older than maxAgeMs,
+// block on one summary-free refresh so the visitor's first paint is today's
+// news, not the seed's. Bounded by budgetMs in case we end up awaiting an
+// in-flight refresh that includes a slow Claude batch — past the budget we
+// serve what we have rather than keep the visitor staring at skeletons.
+async function ensureFresh(maxAgeMs = 5 * 60 * 1000, budgetMs = 12000) {
+  if (state.lastRefresh && Date.now() - new Date(state.lastRefresh).getTime() <= maxAgeMs) return;
+  const done = refresh({ maxSummaryBatches: 0 }).catch((err) => {
+    console.error('[refresh] blocking fresh refresh failed:', err.message);
+  });
+  await Promise.race([
+    done,
+    new Promise((resolve) => setTimeout(resolve, budgetMs).unref?.()),
+  ]);
 }
 
 function pickHero() {
@@ -373,4 +397,4 @@ async function ensureReady() {
   return { ready: false, background };
 }
 
-module.exports = { start, ensureReady, refresh, getFeed, getRows, getCategories, getSnapshot, loadSeed, state };
+module.exports = { start, ensureReady, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, loadSeed, state };

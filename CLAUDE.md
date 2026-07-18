@@ -47,7 +47,7 @@ scripts/build-seed.js   regenerates data/seed.json
 
 ## Non-negotiable invariants (learned the hard way)
 
-1. **The request path never blocks on feed fetching.** Serverless instances each have their own memory; a cold one bootstraps via: memory → CDN `/api/snapshot` (2s cap) → bundled `data/seed.json` → only then a blocking fetch. All real refreshing runs in the background via `waitUntil` (`@vercel/functions`). Claude summarization is background-only (max 1 batch) — an Opus call can take 30s+ and must never sit in front of a response.
+1. **The request path never blocks on feed fetching — except the boot request.** `/api/home?fresh=1` (what `boot()` in `public/app.js` calls) deliberately blocks on one summary-free refresh via `store.ensureFresh()` (12s budget) so a first visit always paints the latest news instead of a stale CDN/seed copy. Every other request answers instantly: memory → CDN `/api/snapshot` (2s cap) → bundled `data/seed.json`, with real refreshing in the background via `waitUntil` (`@vercel/functions`). Claude summarization is background-only (max 1 batch) — an Opus call can take 30s+ and must never sit in front of a response, which is also why the fresh path skips `ensureReadyForRequest()`.
 2. **Refreshes merge, never replace** (`src/store.js`). A source that times out must not erase its stories — that used to make whole homepage sections vanish between reloads.
 3. **Sections are a fixed taxonomy** (`SECTION_ORDER` in `src/store.js`). Rails and category chips always render in canonical order so the UI never reshuffles.
 4. **The frontend never re-renders under the reader.** New data is offered via the red "New stories" pill (`offerUpdate()` in `public/app.js`), not applied automatically.
