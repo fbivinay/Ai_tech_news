@@ -19,8 +19,8 @@
   <meta name="twitter:title" content="AI &amp; Tech News — Concise AI summaries, full stories at the source" />
   <meta name="twitter:description" content="The fastest way to stay updated on AI and technology. Read concise AI-generated summaries and go directly to the original source for the full story." />
   <meta name="twitter:image" content="https://ai-tech-news-alpha.vercel.app/logo.png" />
-  <link rel="stylesheet" href="styles.css?v=4" />
-  <link rel="preload" href="app.js?v=6" as="script" />
+  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="preload" href="app.js?v=7" as="script" />
 </head>
 <body>
   <header class="site-header">
@@ -75,11 +75,17 @@
     <span>External link — you are leaving the platform.<br /><small id="toast-dest"></small></span>
   </div>
 
-  <div id="storage-notice" class="storage-notice" role="status" hidden>
-    <p>This site stores your theme choice and a cached copy of the homepage in your browser's local storage, so pages load instantly on return visits. No cookies, no tracking, nothing shared with third parties.</p>
-    <button id="storage-notice-dismiss" class="storage-notice-dismiss" type="button">Got it</button>
+  <div id="consent-gate" class="consent-gate" role="dialog" aria-modal="true" aria-labelledby="consent-title" hidden>
+    <div class="consent-card">
+      <h2 id="consent-title">Cookie &amp; storage preferences</h2>
+      <p>We don't run ads or tracking cookies. "Necessary" storage is just your theme choice and a cached copy of the homepage for instant reloads. "Accept all" additionally allows optional cookies if we ever add analytics — nothing is shared with third parties either way.</p>
+      <div class="consent-actions">
+        <button id="consent-necessary" class="btn-consent btn-consent-secondary" type="button">Necessary Only</button>
+        <button id="consent-all" class="btn-consent btn-consent-primary" type="button">Accept All Cookies</button>
+      </div>
+    </div>
   </div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

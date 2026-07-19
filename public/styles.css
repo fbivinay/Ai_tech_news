@@ -633,39 +633,48 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .toast-icon { font-size: 18px; }
 .toast small { opacity: 0.7; }
 
-.storage-notice {
+.consent-gate {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 60;
+  inset: 0;
+  z-index: 100;
   display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  align-items: flex-end;
   justify-content: center;
-  background: var(--ink);
-  color: var(--bg);
-  padding: 14px 20px;
-  font-size: 13px;
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.22);
-  transform: translateY(100%);
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.consent-gate.show { opacity: 1; }
+.consent-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 28px 28px 24px;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.3);
+  transform: translateY(24px);
   transition: transform 0.25s var(--ease-out);
 }
-.storage-notice.show { transform: translateY(0); }
-.storage-notice p { margin: 0; max-width: 640px; opacity: 0.85; }
-.storage-notice-dismiss {
-  flex: none;
-  background: var(--red);
-  color: #fff;
-  border: none;
+.consent-gate.show .consent-card { transform: translateY(0); }
+.consent-card h2 { margin: 0 0 10px; font-size: 19px; }
+.consent-card p { margin: 0 0 20px; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
+.consent-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-consent {
+  flex: 1;
+  min-width: 160px;
   border-radius: 999px;
-  padding: 8px 18px;
-  font-size: 13px;
+  padding: 12px 20px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+  border: none;
 }
-.storage-notice-dismiss:hover { background: var(--red-dark); }
+.btn-consent-primary { background: var(--red); color: #fff; }
+.btn-consent-primary:hover { background: var(--red-dark); }
+.btn-consent-secondary { background: var(--chip-bg); color: var(--ink); }
+.btn-consent-secondary:hover { background: var(--rule); }
 
 /* ---------- Skeletons ---------- */
 
