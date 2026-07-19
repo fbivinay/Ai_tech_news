@@ -40,6 +40,20 @@
     localStorage.setItem('theme', dark ? 'light' : 'dark');
   });
 
+  /* ---------- Local storage disclosure (first visit only) ---------- */
+
+  const STORAGE_NOTICE_KEY = 'storage-notice-dismissed';
+  if (!localStorage.getItem(STORAGE_NOTICE_KEY)) {
+    const notice = $('storage-notice');
+    notice.hidden = false;
+    requestAnimationFrame(() => notice.classList.add('show'));
+    $('storage-notice-dismiss').addEventListener('click', () => {
+      localStorage.setItem(STORAGE_NOTICE_KEY, '1');
+      notice.classList.remove('show');
+      setTimeout(() => { notice.hidden = true; }, 250);
+    });
+  }
+
   /* ---------- Header shadow on scroll ---------- */
 
   let scrollTicking = false;
