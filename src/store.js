@@ -44,13 +44,14 @@ function hashId(link) {
 function normalizeLink(link) {
   try {
     const url = new URL(link);
+    if (!/^https?:$/i.test(url.protocol)) return null;
     url.hash = '';
     for (const param of [...url.searchParams.keys()]) {
       if (/^(utm_|fbclid|gclid|ref$)/i.test(param)) url.searchParams.delete(param);
     }
     return url.toString();
   } catch {
-    return link;
+    return null;
   }
 }
 
