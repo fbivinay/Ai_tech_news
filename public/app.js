@@ -81,6 +81,7 @@
       gate.classList.remove('show');
       document.body.style.overflow = '';
       setTimeout(() => { gate.hidden = true; }, 250);
+      maybeShowNotifPrompt();
     }
 
     // Trap focus on the gate's own controls (privacy link + the two
@@ -100,6 +101,50 @@
   }
 
   initConsentGate();
+
+  /* ---------- Notification permission prompt (asked right after the cookie
+     choice) + firing a native notification when a fresh top story lands ---------- */
+
+  const NOTIF_PROMPT_KEY = 'notif-prompt-seen';
+
+  function maybeShowNotifPrompt() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+    if (localStorage.getItem(NOTIF_PROMPT_KEY)) return;
+
+    const prompt = $('notif-prompt');
+    prompt.hidden = false;
+    requestAnimationFrame(() => prompt.classList.add('show'));
+
+    function dismiss() {
+      localStorage.setItem(NOTIF_PROMPT_KEY, '1');
+      prompt.classList.remove('show');
+      setTimeout(() => { prompt.hidden = true; }, 250);
+    }
+
+    $('notif-enable').addEventListener('click', () => {
+      Notification.requestPermission().finally(dismiss);
+    }, { once: true });
+    $('notif-dismiss').addEventListener('click', dismiss, { once: true });
+  }
+
+  // Foreground-only: fires while this tab is open, piggybacking on the
+  // existing 60s poll below. No service worker / push subscription needed.
+  function notifyTopStory(home) {
+    if (Notification.permission !== 'granted') return;
+    const item = home.hero;
+    if (!item) return;
+    const notification = new Notification(item.title, {
+      body: item.summary || '',
+      icon: '/logo.png',
+      tag: 'top-news',
+    });
+    notification.onclick = () => {
+      window.focus();
+      window.open(item.link, '_blank', 'noopener');
+      notification.close();
+    };
+  }
 
   /* ---------- Header shadow on scroll ---------- */
 
@@ -656,6 +701,7 @@
       try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), home })); } catch { /* quota */ }
       if (state.rowsFingerprint && rowsFingerprint(home) !== state.rowsFingerprint) {
         offerUpdate(home);
+        notifyTopStory(home);
       }
     } catch { /* transient network issue — next tick will retry */ }
   }
