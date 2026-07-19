@@ -633,6 +633,40 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .toast-icon { font-size: 18px; }
 .toast small { opacity: 0.7; }
 
+.storage-notice {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 14px 20px;
+  font-size: 13px;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.22);
+  transform: translateY(100%);
+  transition: transform 0.25s var(--ease-out);
+}
+.storage-notice.show { transform: translateY(0); }
+.storage-notice p { margin: 0; max-width: 640px; opacity: 0.85; }
+.storage-notice-dismiss {
+  flex: none;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.storage-notice-dismiss:hover { background: var(--red-dark); }
+
 /* ---------- Skeletons ---------- */
 
 .sk { position: relative; overflow: hidden; background: var(--chip-bg); border-radius: 6px; }
