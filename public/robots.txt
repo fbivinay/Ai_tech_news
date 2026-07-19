@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ai-tech-news-alpha.vercel.app/sitemap.xml
