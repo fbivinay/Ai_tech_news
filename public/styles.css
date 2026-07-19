@@ -682,6 +682,33 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .btn-consent-secondary { background: var(--chip-bg); color: var(--ink); }
 .btn-consent-secondary:hover { background: var(--rule); }
 
+.notif-prompt {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 90;
+  width: 100%;
+  max-width: 340px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(16px);
+  transition: opacity 0.25s ease, transform 0.25s var(--ease-out);
+}
+.notif-prompt[hidden] { display: none; }
+.notif-prompt.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.notif-prompt-card {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+.notif-prompt-card h3 { margin: 0 0 8px; font-size: 15.5px; }
+.notif-prompt-card p { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.notif-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.notif-actions .btn-consent { flex: 1; min-width: 110px; padding: 10px 14px; font-size: 13px; }
+
 /* ---------- Legal / policy pages ---------- */
 
 .legal { max-width: 760px; padding-top: 32px; padding-bottom: 60px; }

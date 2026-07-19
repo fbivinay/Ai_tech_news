@@ -19,8 +19,8 @@
   <meta name="twitter:title" content="AI &amp; Tech News — Concise AI summaries, full stories at the source" />
   <meta name="twitter:description" content="The fastest way to stay updated on AI and technology. Read concise AI-generated summaries and go directly to the original source for the full story." />
   <meta name="twitter:image" content="https://ai-tech-news-alpha.vercel.app/logo.png" />
-  <link rel="stylesheet" href="styles.css?v=7" />
-  <link rel="preload" href="app.js?v=8" as="script" />
+  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="preload" href="app.js?v=9" as="script" />
 </head>
 <body>
   <header class="site-header">
@@ -87,6 +87,17 @@
     </div>
   </div>
 
-  <script src="app.js?v=8"></script>
+  <div id="notif-prompt" class="notif-prompt" role="dialog" aria-labelledby="notif-title" hidden>
+    <div class="notif-prompt-card">
+      <h3 id="notif-title">Get top story alerts?</h3>
+      <p>Turn on browser notifications to hear about breaking top stories while this tab is open.</p>
+      <div class="notif-actions">
+        <button id="notif-dismiss" class="btn-consent btn-consent-secondary" type="button">Not now</button>
+        <button id="notif-enable" class="btn-consent btn-consent-primary" type="button">Enable Notifications</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=9"></script>
 </body>
 </html>
