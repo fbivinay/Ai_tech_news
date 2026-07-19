@@ -676,6 +676,17 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .btn-consent-secondary { background: var(--chip-bg); color: var(--ink); }
 .btn-consent-secondary:hover { background: var(--rule); }
 
+/* ---------- Legal / policy pages ---------- */
+
+.legal { max-width: 760px; padding-top: 32px; padding-bottom: 60px; }
+.legal h1 { font-size: 28px; margin: 0 0 4px; }
+.legal h2 { font-size: 19px; margin: 32px 0 10px; }
+.legal h3 { font-size: 15.5px; margin: 22px 0 8px; }
+.legal p, .legal li { font-size: 14.5px; line-height: 1.65; color: var(--ink-soft); }
+.legal ul { padding-left: 20px; margin: 8px 0; }
+.legal a { color: var(--red); }
+.legal code { background: var(--chip-bg); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
 /* ---------- Skeletons ---------- */
 
 .sk { position: relative; overflow: hidden; background: var(--chip-bg); border-radius: 6px; }

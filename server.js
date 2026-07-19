@@ -19,7 +19,7 @@ app.use((_req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   );
   next();
 });
