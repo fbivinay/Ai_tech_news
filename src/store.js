@@ -379,6 +379,26 @@ function getSnapshot() {
   return { lastRefresh: state.lastRefresh, items: state.items };
 }
 
+// Public health payload for /api/status — per-source failure *messages* are
+// deliberately dropped (they're internal fetch/network detail, not something
+// an unauthenticated caller needs); `ok` is what an uptime monitor should key
+// its alert on.
+function getHealth() {
+  const sources = {};
+  for (const [name, s] of Object.entries(state.sourceStatus)) {
+    sources[name] = { ok: s.ok, items: s.items || 0, at: s.at };
+  }
+  const sourcesOk = Object.values(sources).filter((s) => s.ok).length;
+  return {
+    ok: state.items.length > 0,
+    items: state.items.length,
+    lastRefresh: state.lastRefresh,
+    sourcesOk,
+    sourcesTotal: Object.keys(sources).length,
+    sources,
+  };
+}
+
 function loadSnapshot(snapshot) {
   if (!snapshot?.items?.length) return false;
   state.items = snapshot.items;
@@ -452,4 +472,4 @@ async function ensureReady() {
   return { ready: false, background };
 }
 
-module.exports = { start, ensureReady, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, loadSeed, state };
+module.exports = { start, ensureReady, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, getHealth, loadSeed, state };
