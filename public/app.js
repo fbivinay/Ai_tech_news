@@ -40,19 +40,44 @@
     localStorage.setItem('theme', dark ? 'light' : 'dark');
   });
 
-  /* ---------- Local storage disclosure (first visit only) ---------- */
+  /* ---------- Cookie/storage consent gate (blocks the site until chosen) ---------- */
 
-  const STORAGE_NOTICE_KEY = 'storage-notice-dismissed';
-  if (!localStorage.getItem(STORAGE_NOTICE_KEY)) {
-    const notice = $('storage-notice');
-    notice.hidden = false;
-    requestAnimationFrame(() => notice.classList.add('show'));
-    $('storage-notice-dismiss').addEventListener('click', () => {
-      localStorage.setItem(STORAGE_NOTICE_KEY, '1');
-      notice.classList.remove('show');
-      setTimeout(() => { notice.hidden = true; }, 250);
+  const CONSENT_KEY = 'cookie-consent'; // 'all' | 'necessary'
+
+  function initConsentGate() {
+    if (localStorage.getItem(CONSENT_KEY)) return;
+
+    const gate = $('consent-gate');
+    const buttons = [$('consent-necessary'), $('consent-all')];
+
+    document.body.style.overflow = 'hidden';
+    gate.hidden = false;
+    requestAnimationFrame(() => gate.classList.add('show'));
+    buttons[0].focus();
+
+    function choose(value) {
+      localStorage.setItem(CONSENT_KEY, value);
+      gate.classList.remove('show');
+      document.body.style.overflow = '';
+      setTimeout(() => { gate.hidden = true; }, 250);
+    }
+
+    // Trap focus on the two buttons — nothing behind the gate is reachable
+    // until a choice is made.
+    gate.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      const next = event.shiftKey
+        ? (document.activeElement === buttons[0] ? buttons[1] : buttons[0])
+        : (document.activeElement === buttons[1] ? buttons[0] : buttons[1]);
+      next.focus();
     });
+
+    $('consent-necessary').addEventListener('click', () => choose('necessary'));
+    $('consent-all').addEventListener('click', () => choose('all'));
   }
+
+  initConsentGate();
 
   /* ---------- Header shadow on scroll ---------- */
 
