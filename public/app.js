@@ -65,7 +65,10 @@
   if (localStorage.getItem(CONSENT_KEY) === 'all') loadAnalytics();
 
   function initConsentGate() {
-    if (localStorage.getItem(CONSENT_KEY)) return;
+    if (localStorage.getItem(CONSENT_KEY)) {
+      maybeShowNotifPrompt();
+      return;
+    }
 
     const gate = $('consent-gate');
     const focusable = [...gate.querySelectorAll('a[href], button')];
@@ -102,22 +105,19 @@
 
   initConsentGate();
 
-  /* ---------- Notification permission prompt (asked right after the cookie
-     choice) + firing a native notification when a fresh top story lands ---------- */
-
-  const NOTIF_PROMPT_KEY = 'notif-prompt-seen';
+  /* ---------- Notification permission prompt (asked after the cookie choice,
+     and again on every visit/refresh until the visitor accepts or blocks it)
+     + firing a native notification when a fresh top story lands ---------- */
 
   function maybeShowNotifPrompt() {
     if (!('Notification' in window)) return;
-    if (Notification.permission !== 'default') return;
-    if (localStorage.getItem(NOTIF_PROMPT_KEY)) return;
+    if (Notification.permission !== 'default') return; // already granted or blocked
 
     const prompt = $('notif-prompt');
     prompt.hidden = false;
     requestAnimationFrame(() => prompt.classList.add('show'));
 
     function dismiss() {
-      localStorage.setItem(NOTIF_PROMPT_KEY, '1');
       prompt.classList.remove('show');
       setTimeout(() => { prompt.hidden = true; }, 250);
     }
