@@ -40,37 +40,59 @@
     localStorage.setItem('theme', dark ? 'light' : 'dark');
   });
 
+  /* ---------- Analytics (only loaded after "Accept All") ---------- */
+
+  const GA_MEASUREMENT_ID = 'G-RBN5HV40NY';
+
+  function loadAnalytics() {
+    if (window.__gaLoaded) return;
+    window.__gaLoaded = true;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function gtag() { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', GA_MEASUREMENT_ID);
+
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+    document.head.appendChild(script);
+  }
+
   /* ---------- Cookie/storage consent gate (blocks the site until chosen) ---------- */
 
   const CONSENT_KEY = 'cookie-consent'; // 'all' | 'necessary'
+
+  if (localStorage.getItem(CONSENT_KEY) === 'all') loadAnalytics();
 
   function initConsentGate() {
     if (localStorage.getItem(CONSENT_KEY)) return;
 
     const gate = $('consent-gate');
-    const buttons = [$('consent-necessary'), $('consent-all')];
+    const focusable = [...gate.querySelectorAll('a[href], button')];
 
     document.body.style.overflow = 'hidden';
     gate.hidden = false;
     requestAnimationFrame(() => gate.classList.add('show'));
-    buttons[0].focus();
+    focusable[0].focus();
 
     function choose(value) {
       localStorage.setItem(CONSENT_KEY, value);
+      if (value === 'all') loadAnalytics();
       gate.classList.remove('show');
       document.body.style.overflow = '';
       setTimeout(() => { gate.hidden = true; }, 250);
     }
 
-    // Trap focus on the two buttons — nothing behind the gate is reachable
-    // until a choice is made.
+    // Trap focus on the gate's own controls (privacy link + the two
+    // buttons) — nothing behind the gate is reachable until a choice is made.
     gate.addEventListener('keydown', (event) => {
       if (event.key !== 'Tab') return;
       event.preventDefault();
-      const next = event.shiftKey
-        ? (document.activeElement === buttons[0] ? buttons[1] : buttons[0])
-        : (document.activeElement === buttons[1] ? buttons[0] : buttons[1]);
-      next.focus();
+      const i = focusable.indexOf(document.activeElement);
+      const nextIndex = event.shiftKey
+        ? (i <= 0 ? focusable.length - 1 : i - 1)
+        : (i === focusable.length - 1 ? 0 : i + 1);
+      focusable[nextIndex].focus();
     });
 
     $('consent-necessary').addEventListener('click', () => choose('necessary'));
