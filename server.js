@@ -63,13 +63,11 @@ app.get('/api/categories', (_req, res) => {
   res.json({ categories: store.getCategories() });
 });
 
+// Uptime-monitor target: 200 while the store has data, 503 when it doesn't
+// (e.g. every source failing) so an external check actually pages someone.
 app.get('/api/status', (_req, res) => {
-  res.json({
-    items: store.state.items.length,
-    lastRefresh: store.state.lastRefresh,
-    aiSummaries: aiEnabled(),
-    sources: store.state.sourceStatus,
-  });
+  const health = store.getHealth();
+  res.status(health.ok ? 200 : 503).json({ ...health, aiSummaries: aiEnabled() });
 });
 
 app.listen(PORT, () => {
