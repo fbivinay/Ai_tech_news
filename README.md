@@ -45,10 +45,12 @@ On Vercel there is no background refresh loop — feeds refresh lazily when a re
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/rows` | Homepage payload: billboard hero, Trending Now, category rails |
+| `GET /api/home` | Everything the homepage boots from in one request: hero, Trending Now, category rails, categories, first feed page |
+| `GET /api/rows` | Homepage rails only: billboard hero, Trending Now, category rails |
 | `GET /api/feed?page=1&limit=12&category=AI%20Models` | Paginated feed for the Latest Updates grid |
 | `GET /api/categories` | Category names with counts |
-| `GET /api/status` | Item count, last refresh, per-source fetch status, AI on/off |
+| `GET /api/snapshot` | Full store dump — used by cold serverless instances to hydrate from the CDN |
+| `GET /api/status` | Item count, last refresh, per-source `ok`/`items`/`at`, AI on/off. Returns `503` when the store is empty — safe to point an uptime monitor at |
 
 ## Architecture
 
@@ -62,6 +64,13 @@ src/lib/summarize.js    Claude batch summarization + extractive fallback
 src/lib/text.js         HTML stripping, sentence utilities
 public/                 Static frontend (no build step)
 ```
+
+## Production hardening
+
+- **Security headers** on every response — CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` (`vercel.json` in production, matching middleware in `server.js` for local dev)
+- **Link sanitization** — `normalizeLink()` in `src/store.js` rejects any RSS-supplied link that isn't `http(s)`, so a compromised or malicious feed can't smuggle a `javascript:` URI into a card's link
+- **SEO basics** — `robots.txt`, `sitemap.xml`, and Open Graph/Twitter Card meta tags ship in `public/`
+- **Monitoring-ready `/api/status`** — returns `503` (not a hardcoded `200`) when the store has no items, and never exposes internal per-source fetch-error text, so it's safe to wire up to an external uptime monitor (e.g. UptimeRobot)
 
 ## Compliance by design
 
