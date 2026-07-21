@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explore — AI &amp; Tech News</title>
+  <meta name="description" content="Explore AI & tech research papers, jobs, events, free courses, and hackathons — always up to date, linking to the source." />
+  <link rel="canonical" href="https://ai-tech-news-alpha.vercel.app/explore.html" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="preload" href="explore.js?v=11" as="script" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/" aria-label="AI and Tech News home">
+        <img class="brand-mark" src="logo.png" alt="" width="34" height="34" />
+        <span class="brand-text">AI<em>&amp;</em>Tech News</span>
+      </a>
+      <nav class="top-nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/explore.html" class="active" aria-current="page">Explore</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="explore" aria-label="Explore resources">
+      <div class="explore-head">
+        <h1 class="explore-title">Explore</h1>
+        <p class="explore-sub">Papers, jobs, events, courses &amp; hackathons — always current, straight from the source.</p>
+      </div>
+
+      <div id="explore-tabs" class="explore-tabs" role="tablist" aria-label="Resource types"></div>
+      <div id="event-chips" class="event-chips" hidden></div>
+
+      <div id="explore-grid" class="feed-grid" aria-live="polite"></div>
+      <div id="explore-empty" class="end-note" hidden>Nothing here right now — check back soon.</div>
+
+      <div class="feed-actions">
+        <button id="explore-more" class="btn-load-more" type="button" hidden>Load More</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p class="muted"><a href="/">AI &amp; Tech News</a> · <a href="/privacy.html">Privacy Policy</a></p>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-icon">↗</span>
+    <span>External link — you are leaving the platform.<br /><small id="toast-dest"></small></span>
+  </div>
+
+  <div id="consent-gate" class="consent-gate" role="dialog" aria-modal="true" aria-labelledby="consent-title" hidden>
+    <div class="consent-card">
+      <h2 id="consent-title">Cookie &amp; storage preferences</h2>
+      <p>We use essential cookies and local storage to keep the site working. With your permission, we also use analytics cookies. Read our <a href="/privacy.html">Privacy Policy</a> for details.</p>
+      <div class="consent-actions">
+        <button id="consent-necessary" class="btn-consent btn-consent-secondary" type="button">Necessary Only</button>
+        <button id="consent-all" class="btn-consent btn-consent-primary" type="button">Accept All Cookies</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="explore.js?v=11"></script>
+</body>
+</html>
