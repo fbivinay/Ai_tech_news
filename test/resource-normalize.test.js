@@ -33,10 +33,12 @@ assert.strictEqual(wwr.meta.company, 'Acme');
 
 // Devpost: ended hackathons are dropped, live ones kept
 assert.strictEqual(normalizeDevpost({ title: 'Old', url: 'https://devpost.com/h/1', open_state: 'ended' }), null);
-const hack = normalizeDevpost({ title: 'AI Jam', url: 'https://devpost.com/h/2', open_state: 'open', submission_period_dates: 'Aug 1 - Aug 30, 2026', prize_amount: '<span>$10,000</span>', online: true });
+const hack = normalizeDevpost({ title: 'AI Jam', url: 'https://devpost.com/h/2', open_state: 'open', submission_period_dates: 'Aug 1 - Aug 30, 2026', prize_amount: '<span>$10,000</span>', online: true, thumbnail_url: '//challengepost.com/thumb.png' });
 assert.strictEqual(hack.kind, 'hackathon');
 assert.strictEqual(hack.meta.deadline, 'Aug 1 - Aug 30, 2026');
 assert.strictEqual(hack.meta.mode, 'online');
+assert.strictEqual(hack.meta.prize, '$10,000'); // HTML stripped from prize_amount
+assert.strictEqual(hack.image, 'https://challengepost.com/thumb.png'); // protocol-relative thumbnail upgraded to https
 
 // Sheet events: past-dated events are dropped
 assert.strictEqual(
