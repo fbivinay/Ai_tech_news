@@ -11,12 +11,20 @@ const FEED_SOURCES = [
     type: 'rss',
     url: `https://export.arxiv.org/rss/${cat}`,
   })),
+  // Jobs are India-focused: The Muse queried by Indian tech-hub cities
+  // (on-site/hybrid roles), remote boards filtered to India-eligible
+  // listings (india/apac/asia/worldwide) in src/resources.js.
+  ...[1, 2, 3].map((page) => ({
+    id: `themuse-${page}`,
+    kind: 'job',
+    type: 'json',
+    url: `https://www.themuse.com/api/public/jobs?category=Software%20Engineering&category=Data%20Science&location=Bangalore%2C%20India&location=Mumbai%2C%20India&location=Hyderabad%2C%20India&location=Pune%2C%20India&location=Gurgaon%2C%20India&location=New%20Delhi%2C%20India&location=Chennai%2C%20India&location=Noida%2C%20India&page=${page}`,
+    arrayPath: 'results',
+  })),
+  { id: 'remotive', kind: 'job', type: 'json', url: 'https://remotive.com/api/remote-jobs?limit=100', arrayPath: 'jobs' },
   { id: 'remoteok', kind: 'job', type: 'json', url: 'https://remoteok.com/api', arrayPath: null },
-  { id: 'wwr', kind: 'job', type: 'rss', url: 'https://weworkremotely.com/categories/remote-programming-jobs.rss' },
-  { id: 'arbeitnow', kind: 'job', type: 'json', url: 'https://www.arbeitnow.com/api/job-board-api', arrayPath: 'data' },
-  { id: 'jobicy', kind: 'job', type: 'json', url: 'https://jobicy.com/api/v2/remote-jobs?count=50', arrayPath: 'jobs' },
+  { id: 'jobicy', kind: 'job', type: 'json', url: 'https://jobicy.com/api/v2/remote-jobs?count=50&geo=apac', arrayPath: 'jobs' },
   { id: 'himalayas', kind: 'job', type: 'json', url: 'https://himalayas.app/jobs/api?limit=50', arrayPath: 'jobs' },
-  { id: 'themuse', kind: 'job', type: 'json', url: 'https://www.themuse.com/api/public/jobs?category=Software%20Engineering&category=Data%20Science&page=1', arrayPath: 'results' },
   { id: 'devpost', kind: 'hackathon', type: 'json', url: 'https://devpost.com/api/hackathons', arrayPath: 'hackathons' },
 ];
 

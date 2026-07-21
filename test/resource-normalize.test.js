@@ -2,6 +2,7 @@ const assert = require('assert');
 const {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
+  normalizeRemotive, isIndiaEligibleJob,
   normalizeDevpost, normalizeSheetRow,
 } = require('../src/lib/resource-normalize');
 
@@ -85,5 +86,17 @@ assert.strictEqual(mu.meta.mode, 'Remote');
 const rok = normalizeRemoteOK({ position: 'AI Eng', company: 'RCo', url: 'https://remoteok.com/j/9', salary_min: 80000, salary_max: 120000 });
 assert.strictEqual(rok.meta.salary, '$80k–$120k');
 assert.strictEqual(rok.meta.mode, 'Remote');
+
+// Remotive: location + underscored job_type cleaned
+const rv = normalizeRemotive({ title: 'Data Engineer', url: 'https://remotive.com/j/1', company_name: 'VCo', company_logo: 'https://x.com/v.png', candidate_required_location: 'India', salary: '₹20L–₹35L', job_type: 'full_time', publication_date: '2026-07-20T00:00:00' });
+assert.strictEqual(rv.meta.location, 'India');
+assert.strictEqual(rv.meta.type, 'full time');
+
+// India eligibility: India named → yes; worldwide remote → yes; US-only remote → no; Berlin on-site → no
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Bangalore, India', mode: '' } }), true);
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Worldwide', mode: 'Remote' } }), true);
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'APAC', mode: 'Remote' } }), true);
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'USA', mode: 'Remote' } }), false);
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Berlin', mode: 'On-site' } }), false);
 
 console.log('resource-normalize.test OK');

@@ -9,6 +9,7 @@ const { fetchFeed } = require('./lib/feed');
 const {
   normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeDevpost, normalizeSheetRow,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
+  normalizeRemotive, isIndiaEligibleJob,
 } = require('./lib/resource-normalize');
 
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
@@ -62,7 +63,9 @@ function normalizeFeedItem(src, raw) {
     case 'arbeitnow': return normalizeArbeitnow(raw);
     case 'jobicy': return normalizeJobicy(raw);
     case 'himalayas': return normalizeHimalayas(raw);
-    case 'themuse': return normalizeMuse(raw);
+    case 'remotive': return normalizeRemotive(raw);
+    case 'themuse-1':
+    case 'themuse-2': return normalizeMuse(raw);
     case 'devpost': return normalizeDevpost(raw);
     default: return src.kind === 'paper' ? normalizeArxiv(raw) : null;
   }
@@ -83,7 +86,12 @@ async function fetchFeedSource(src) {
 }
 
 function sortKind(kind, items) {
-  if (kind === 'paper' || kind === 'job') {
+  if (kind === 'job') {
+    // India-named roles first, newest first within each group.
+    const inIndia = (r) => (/india/i.test((r.meta && r.meta.location) || '') ? 0 : 1);
+    return items.sort((a, b) => inIndia(a) - inIndia(b) || new Date(b.date || 0) - new Date(a.date || 0));
+  }
+  if (kind === 'paper') {
     return items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }
   if (kind === 'event') {
@@ -109,6 +117,9 @@ function mergeKind(kind, incoming, previous) {
       'event',
     ));
   }
+  // Jobs are India-focused — also scrubs pre-filter records carried in from
+  // an old snapshot.
+  if (kind === 'job') result = result.filter(isIndiaEligibleJob);
   return sortKind(kind, result).slice(0, MAX_PER_KIND);
 }
 
@@ -128,7 +139,8 @@ async function doRefresh() {
   feedResults.forEach((result, i) => {
     const src = FEED_SOURCES[i];
     if (result.status === 'fulfilled') {
-      const records = result.value.filter(Boolean);
+      let records = result.value.filter(Boolean);
+      if (src.kind === 'job') records = records.filter(isIndiaEligibleJob);
       next[src.kind].push(...records);
       state.sourceStatus[src.id] = { ok: true, items: records.length, at: new Date().toISOString() };
     } else {
