@@ -872,3 +872,5 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 }
 .res-badge.free { color: #0a7d33; background: rgba(10, 125, 51, 0.12); }
 html[data-theme='dark'] .res-badge.free { color: #59d98a; background: rgba(89, 217, 138, 0.14); }
+
+.card-blurb { margin: 8px 0 0; color: var(--ink-soft); font-size: 13.5px; line-height: 1.5; }
