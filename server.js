@@ -5,6 +5,7 @@ const path = require('path');
 const express = require('express');
 const compression = require('compression');
 const store = require('./src/store');
+const resources = require('./src/resources');
 const { aiEnabled } = require('./src/lib/summarize');
 
 const PORT = Number(process.env.PORT || 3000);
@@ -63,6 +64,18 @@ app.get('/api/categories', (_req, res) => {
   res.json({ categories: store.getCategories() });
 });
 
+// Explore resources: /api/explore, ?kind=papers&page=1, ?kind=events&type=workshop, ?snapshot=1
+app.get('/api/explore', (req, res) => {
+  const { TAB_TO_KIND } = require('./src/config/resource-sources');
+  if (req.query.snapshot) return res.json(resources.getSnapshot());
+  const kind = TAB_TO_KIND[req.query.kind];
+  if (!kind) return res.json({ counts: resources.getCounts(), lastRefresh: resources.state.lastRefresh });
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(48, Math.max(1, parseInt(req.query.limit, 10) || 24));
+  const type = req.query.type || null;
+  res.json(resources.getResources({ kind, page, limit, type }));
+});
+
 // Uptime-monitor target: 200 while the store has data, 503 when it doesn't
 // (e.g. every source failing) so an external check actually pages someone.
 app.get('/api/status', (_req, res) => {
@@ -73,4 +86,5 @@ app.get('/api/status', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`AI & Tech News running on http://localhost:${PORT}`);
   store.start();
+  resources.start();
 });
