@@ -1,29 +1,25 @@
-/* AI & Tech News — Explore page. Tabbed resource browser (papers, jobs,
-   events, courses, hackathons) over /api/explore. Self-contained: repeats a
-   few small helpers from app.js on purpose so the homepage stays untouched.
-   ponytail: minor helper duplication with app.js; extract a common.js only
-   if a third page appears. */
+/* AI & Tech News — resource section pages (jobs, courses, hackathons,
+   events/workshops/conferences) over /api/explore. Which section renders is
+   decided by the URL (?kind=…&type=…); the header nav is the only switcher.
+   Self-contained: repeats a few small helpers from app.js on purpose so the
+   homepage stays untouched. ponytail: minor helper duplication with app.js;
+   extract a common.js only if a third page appears. */
 
 (() => {
-  const TABS = [
+  const KINDS = [
     { key: 'jobs', label: 'Jobs' },
     { key: 'courses', label: 'Courses' },
-    { key: 'events', label: 'Events' },
     { key: 'hackathons', label: 'Hackathons' },
-    { key: 'papers', label: 'Papers' },
+    { key: 'events', label: 'Events' },
   ];
-  const EVENT_TYPES = [
-    { key: 'all', label: 'All' },
-    { key: 'conference', label: 'Conferences' },
-    { key: 'workshop', label: 'Workshops' },
-    { key: 'session', label: 'Sessions' },
-  ];
+  // Workshops/Conferences are event-type pages of their own; plain Events
+  // shows every type (sessions included).
+  const EVENT_TYPE_LABELS = { workshop: 'Workshops', conference: 'Conferences' };
 
   const state = { tab: 'jobs', eventType: 'all', page: 1, hasMore: false, loading: false };
 
   const $ = (id) => document.getElementById(id);
   const titleEl = $('explore-title');
-  const chipsEl = $('event-chips');
   const gridEl = $('explore-grid');
   const emptyEl = $('explore-empty');
   const moreBtn = $('explore-more');
@@ -168,36 +164,17 @@
     return card;
   }
 
-  /* ---------- Chips ---------- */
-  function renderChips() {
-    chipsEl.textContent = '';
-    chipsEl.hidden = state.tab !== 'events';
-    if (state.tab !== 'events') return;
-    for (const { key, label } of EVENT_TYPES) {
-      const chip = el('button', 'event-chip', label);
-      chip.type = 'button';
-      chip.setAttribute('aria-pressed', key === state.eventType ? 'true' : 'false');
-      if (key === state.eventType) chip.classList.add('active');
-      chip.addEventListener('click', () => {
-        if (state.eventType === key) return;
-        state.eventType = key;
-        renderChips();
-        loadFirstPage();
-      });
-      chipsEl.append(chip);
-    }
-  }
-
   function tabParams(page) {
     const params = new URLSearchParams({ kind: state.tab, page, limit: 24 });
     if (state.tab === 'events' && state.eventType !== 'all') params.set('type', state.eventType);
     return params;
   }
 
-  // Header nav links double as tab shortcuts — keep the highlighted one in sync.
+  // Highlight the nav link matching this page (kind + event type).
   function syncNav() {
+    const type = state.eventType === 'all' ? '' : state.eventType;
     document.querySelectorAll('.top-nav a[data-kind]').forEach((a) => {
-      const active = a.dataset.kind === state.tab;
+      const active = a.dataset.kind === state.tab && (a.dataset.type || '') === type;
       a.classList.toggle('active', active);
       if (active) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
@@ -249,13 +226,18 @@
 
   /* ---------- Boot ---------- */
   function boot() {
-    const wanted = new URLSearchParams(location.search).get('kind');
-    if (TABS.some((t) => t.key === wanted)) state.tab = wanted;
-    const label = TABS.find((t) => t.key === state.tab).label;
+    const query = new URLSearchParams(location.search);
+    const wanted = query.get('kind');
+    if (KINDS.some((k) => k.key === wanted)) state.tab = wanted;
+    const type = query.get('type');
+    if (state.tab === 'events' && EVENT_TYPE_LABELS[type]) state.eventType = type;
+
+    const label = state.eventType !== 'all'
+      ? EVENT_TYPE_LABELS[state.eventType]
+      : KINDS.find((k) => k.key === state.tab).label;
     titleEl.textContent = label;
     document.title = `${label} — AI & Tech News`;
     syncNav();
-    renderChips();
     loadFirstPage();
   }
   boot();
