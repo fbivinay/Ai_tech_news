@@ -146,6 +146,35 @@ function normalizeHimalayas(j) {
   });
 }
 
+function normalizeRemotive(j) {
+  if (!j || !j.title) return null;
+  return makeRecord({
+    kind: 'job',
+    title: j.title,
+    link: j.url,
+    source: 'Remotive',
+    image: j.company_logo || null,
+    date: j.publication_date || null,
+    meta: {
+      company: j.company_name || '',
+      location: j.candidate_required_location || '',
+      mode: 'Remote',
+      salary: stripHtml(j.salary || '').slice(0, 40),
+      type: String(j.job_type || '').replace(/_/g, ' '),
+    },
+  });
+}
+
+// India focus: a job qualifies if it names India outright, or is remote and
+// open to India (worldwide/anywhere/global/APAC/Asia). Region-locked remote
+// roles (US-only, EMEA…) and other on-site countries are dropped.
+function isIndiaEligibleJob(record) {
+  const loc = (record.meta && record.meta.location) || '';
+  if (/india/i.test(`${loc} ${record.title}`)) return true;
+  if (record.meta && record.meta.mode === 'Remote' && /worldwide|anywhere|global|apac|asia/i.test(loc)) return true;
+  return false;
+}
+
 function normalizeMuse(j) {
   if (!j || !j.name) return null;
   const location = (j.locations && j.locations[0] && j.locations[0].name) || '';
@@ -236,5 +265,6 @@ function normalizeSheetRow(row, kind) {
 module.exports = {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
+  normalizeRemotive, isIndiaEligibleJob,
   normalizeDevpost, normalizeSheetRow,
 };
