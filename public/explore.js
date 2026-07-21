@@ -16,7 +16,7 @@
   // shows every type (sessions included).
   const EVENT_TYPE_LABELS = { workshop: 'Workshops', conference: 'Conferences' };
 
-  const state = { tab: 'jobs', eventType: 'all', page: 1, hasMore: false, loading: false };
+  const state = { tab: 'jobs', eventType: 'all', page: 1, hasMore: false, loading: false, sig: null };
 
   const $ = (id) => document.getElementById(id);
   const titleEl = $('explore-title');
@@ -98,14 +98,64 @@
   }
 
   /* ---------- Card ---------- */
+  function wireClickable(card, item) {
+    card.tabIndex = 0;
+    card.setAttribute('role', 'link');
+    card.setAttribute('aria-label', `${item.title} — open on ${item.source || 'source'}`);
+    card.addEventListener('click', (e) => { if (!e.target.closest('a')) openLink(item); });
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === card) openLink(item); });
+  }
+
+  function cardTitle(item) {
+    const title = el('h3', 'card-title');
+    const link = el('a', null, item.title);
+    link.href = item.link;
+    link.target = '_blank';
+    link.rel = 'noopener external';
+    link.tabIndex = -1; // card itself is the tab stop
+    link.addEventListener('click', (e) => { e.preventDefault(); openLink(item); });
+    title.append(link);
+    return title;
+  }
+
+  // Minimal job card: logo · company / designation / salary · type · mode · place.
+  // Full details live at the source.
+  function jobCard(item, i) {
+    const card = el('article', 'news-card job-card');
+    card.style.setProperty('--i', Math.min(i, 11));
+    const info = el('div', 'card-info');
+    const m = item.meta || {};
+
+    const head = el('div', 'job-head');
+    if (item.image) {
+      const logo = el('img', 'job-logo');
+      logo.src = item.image;
+      logo.alt = '';
+      logo.loading = 'lazy';
+      logo.addEventListener('error', () => logo.remove());
+      head.append(logo);
+    }
+    head.append(el('span', 'job-company', m.company || item.source));
+    info.append(head);
+
+    info.append(cardTitle(item));
+
+    const row = el('div', 'res-badges');
+    if (m.salary) row.append(el('span', 'res-badge free', m.salary));
+    if (m.type) row.append(el('span', 'res-badge', m.type));
+    if (m.mode) row.append(el('span', 'res-badge', m.mode));
+    if (m.location) row.append(el('span', 'res-badge', m.location));
+    info.append(row);
+
+    card.append(info);
+    wireClickable(card, item);
+    return card;
+  }
+
   function badgesFor(item) {
     const out = [];
     const m = item.meta || {};
     if (item.kind === 'paper' && m.authors) out.push({ text: m.authors });
-    if (item.kind === 'job') {
-      if (m.company) out.push({ text: m.company });
-      if (m.location) out.push({ text: m.location });
-    }
     if (item.kind === 'event') {
       if (m.type) out.push({ text: m.type.charAt(0).toUpperCase() + m.type.slice(1) });
       if (item.date) out.push({ text: new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
@@ -127,19 +177,13 @@
   }
 
   function resourceCard(item, i) {
+    if (item.kind === 'job') return jobCard(item, i);
+
     const card = el('article', 'news-card');
     card.style.setProperty('--i', Math.min(i, 11));
 
     const info = el('div', 'card-info');
-    const title = el('h3', 'card-title');
-    const link = el('a', null, item.title);
-    link.href = item.link;
-    link.target = '_blank';
-    link.rel = 'noopener external';
-    link.tabIndex = -1; // card itself is the tab stop; avoid a second stop on the inner link
-    link.addEventListener('click', (e) => { e.preventDefault(); openLink(item); });
-    title.append(link);
-    info.append(title);
+    info.append(cardTitle(item));
 
     if (item.source) {
       const meta = el('div', 'meta-row');
@@ -156,11 +200,7 @@
     }
 
     card.append(info);
-    card.tabIndex = 0;
-    card.setAttribute('role', 'link');
-    card.setAttribute('aria-label', `${item.title} — open on ${item.source || 'source'}`);
-    card.addEventListener('click', (e) => { if (!e.target.closest('a')) openLink(item); });
-    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === card) openLink(item); });
+    wireClickable(card, item);
     return card;
   }
 
@@ -181,25 +221,45 @@
     });
   }
 
+  function renderPage1(data) {
+    gridEl.textContent = '';
+    const frag = document.createDocumentFragment();
+    data.items.forEach((item, i) => frag.append(resourceCard(item, i)));
+    gridEl.append(frag);
+    state.hasMore = data.hasMore;
+    state.page = 2;
+    state.sig = data.items.map((x) => x.id).join(',');
+    moreBtn.hidden = !data.hasMore;
+    emptyEl.hidden = data.items.length > 0;
+  }
+
   async function loadFirstPage() {
     state.page = 1;
     gridEl.textContent = '';
     emptyEl.hidden = true;
     moreBtn.hidden = true;
     try {
-      const data = await getJSON(`/api/explore?${tabParams(1)}`);
-      const frag = document.createDocumentFragment();
-      data.items.forEach((item, i) => frag.append(resourceCard(item, i)));
-      gridEl.append(frag);
-      state.hasMore = data.hasMore;
-      state.page = 2;
-      moreBtn.hidden = !data.hasMore;
-      emptyEl.hidden = data.items.length > 0;
+      renderPage1(await getJSON(`/api/explore?${tabParams(1)}`));
     } catch (err) {
       console.error('explore load failed', err);
       emptyEl.hidden = false;
     }
   }
+
+  /* ---------- Live updates: poll every minute ----------
+     Refresh in place only while the reader hasn't engaged (top of page, no
+     load-more) — never re-render under someone reading. */
+  const POLL_MS = 60 * 1000;
+  async function poll() {
+    if (document.hidden || window.scrollY > 200 || state.page > 2 || state.loading) return;
+    try {
+      const data = await getJSON(`/api/explore?${tabParams(1)}`);
+      const sig = data.items.map((x) => x.id).join(',');
+      if (sig !== state.sig) renderPage1(data);
+    } catch { /* transient — next tick retries */ }
+  }
+  setInterval(poll, POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
   async function loadMore() {
     if (state.loading || !state.hasMore) return;

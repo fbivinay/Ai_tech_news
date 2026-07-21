@@ -8,6 +8,7 @@ const { FEED_SOURCES, SHEET_TABS, KINDS, TAB_TO_KIND } = require('./config/resou
 const { fetchFeed } = require('./lib/feed');
 const {
   normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeDevpost, normalizeSheetRow,
+  normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
 } = require('./lib/resource-normalize');
 
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
@@ -58,6 +59,10 @@ function normalizeFeedItem(src, raw) {
   switch (src.id) {
     case 'remoteok': return normalizeRemoteOK(raw);
     case 'wwr': return normalizeWWR(raw);
+    case 'arbeitnow': return normalizeArbeitnow(raw);
+    case 'jobicy': return normalizeJobicy(raw);
+    case 'himalayas': return normalizeHimalayas(raw);
+    case 'themuse': return normalizeMuse(raw);
     case 'devpost': return normalizeDevpost(raw);
     default: return src.kind === 'paper' ? normalizeArxiv(raw) : null;
   }
