@@ -77,6 +77,7 @@ app.get('/api/explore', (req, res) => {
   res.json(resources.getResources({
     kind, page, limit, type,
     q: str(req.query.q), mode: str(req.query.mode), city: str(req.query.city), exp: str(req.query.exp),
+    category: str(req.query.category), free: str(req.query.free),
   }));
 });
 
