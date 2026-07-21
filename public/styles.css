@@ -811,7 +811,12 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 
 /* ---------- Top nav + Explore ---------- */
 
-.top-nav { display: flex; gap: 18px; }
+.top-nav { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.top-nav::-webkit-scrollbar { display: none; }
+@media (max-width: 760px) {
+  .top-nav { gap: 12px; }
+  .top-nav a { font-size: 13px; }
+}
 .top-nav a {
   color: var(--ink-soft);
   text-decoration: none;
