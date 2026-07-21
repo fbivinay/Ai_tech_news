@@ -823,6 +823,32 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .explore-head { margin: 26px 0 14px; }
 .explore-title { margin: 0; font-size: clamp(26px, 3vw, 38px); font-weight: 900; letter-spacing: -0.015em; }
 
+.explore-tools { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 0 12px; }
+.explore-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 9px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+}
+.explore-search:focus { outline: 2px solid var(--red); outline-offset: 1px; border-color: var(--red); }
+.explore-select {
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.explore-select:focus { outline: 2px solid var(--red); outline-offset: 1px; }
+
 .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 14px; }
 .filter-chip {
   border: 1px solid var(--rule);

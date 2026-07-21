@@ -37,6 +37,20 @@ assert.strictEqual(aiJobs.items.length, 1);
 assert.strictEqual(aiJobs.items[0].id, 'j1');
 resources.state.byKind.job = [];
 
+// search + jobs filters (q / mode / city / exp)
+resources.state.byKind.job = [
+  { id: 'q1', kind: 'job', title: 'React Developer', source: 'X', blurb: '', meta: { company: 'Acme', location: 'Bengaluru', mode: 'Hybrid', experience: '2+ yrs exp', field: 'engineering' } },
+  { id: 'q2', kind: 'job', title: 'ML Engineer', source: 'X', blurb: '', meta: { company: 'Beta', location: 'Bangalore, India', mode: 'Remote', experience: '6+ yrs exp', field: 'ai' } },
+  { id: 'q3', kind: 'job', title: 'Data Analyst', source: 'X', blurb: '', meta: { company: 'Gamma', location: 'Mumbai', mode: 'On-site', experience: '', field: 'data' } },
+];
+assert.strictEqual(resources.getResources({ kind: 'job', q: 'react' }).items.length, 1);
+assert.strictEqual(resources.getResources({ kind: 'job', q: 'gamma' }).items.length, 1); // company matches too
+assert.strictEqual(resources.getResources({ kind: 'job', mode: 'remote' }).items.length, 1);
+assert.strictEqual(resources.getResources({ kind: 'job', city: 'bengaluru' }).items.length, 2); // both spellings
+assert.strictEqual(resources.getResources({ kind: 'job', exp: '0-2' }).items.length, 1);
+assert.strictEqual(resources.getResources({ kind: 'job', exp: '6+' }).items.length, 1);
+resources.state.byKind.job = [];
+
 // mergeKind tags job field on merged records (incl. snapshot-hydrated ones)
 const taggedJobs = resources.mergeKind('job', [], [
   { id: 'j3', kind: 'job', title: 'Data Analyst', link: 'https://x.com/j3', date: '2026-07-01', meta: { location: 'Bengaluru', mode: '' } },

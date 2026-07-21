@@ -29,7 +29,11 @@ module.exports = async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(48, Math.max(1, parseInt(req.query.limit, 10) || 24));
   const type = req.query.type || null;
+  const str = (v) => (typeof v === 'string' && v ? v.slice(0, 60) : null);
 
   cacheHeaders(res);
-  res.json(resources.getResources({ kind, page, limit, type }));
+  res.json(resources.getResources({
+    kind, page, limit, type,
+    q: str(req.query.q), mode: str(req.query.mode), city: str(req.query.city), exp: str(req.query.exp),
+  }));
 };
