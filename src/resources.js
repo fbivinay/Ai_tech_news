@@ -87,6 +87,26 @@ function sortKind(kind, items) {
   return items; // hackathon / course: keep source order
 }
 
+// Pure: merge this round's `incoming` records with `previous` (merge-not-
+// replace, so a source that failed keeps its prior cards), re-drop now-past
+// events, sort, and cap. No state access — unit-testable without network.
+function mergeKind(kind, incoming, previous) {
+  const merged = incoming.slice();
+  const seen = new Set(merged.map((r) => r.id));
+  for (const prev of previous) {
+    if (!seen.has(prev.id)) { merged.push(prev); seen.add(prev.id); }
+  }
+  // Re-drop stale events (a previously-future event may now be past).
+  let result = merged;
+  if (kind === 'event') {
+    result = result.filter((r) => normalizeSheetRow(
+      { title: r.title, link: r.link, type: r.meta.type, date: r.date, mode: r.meta.mode, city: r.meta.city, free: r.meta.free },
+      'event',
+    ));
+  }
+  return sortKind(kind, result).slice(0, MAX_PER_KIND);
+}
+
 let refreshPromise = null;
 
 function refresh() {
@@ -127,19 +147,7 @@ async function doRefresh() {
 
   // Merge-not-replace: a source that failed this round keeps its last cards.
   for (const kind of KINDS) {
-    const seen = new Set(next[kind].map((r) => r.id));
-    for (const prev of state.byKind[kind]) {
-      if (!seen.has(prev.id)) { next[kind].push(prev); seen.add(prev.id); }
-    }
-    // Re-drop stale events (a previously-future event may now be past).
-    let merged = next[kind];
-    if (kind === 'event') {
-      merged = merged.filter((r) => normalizeSheetRow(
-        { title: r.title, link: r.link, type: r.meta.type, date: r.date, mode: r.meta.mode, city: r.meta.city, free: r.meta.free },
-        'event',
-      ));
-    }
-    state.byKind[kind] = sortKind(kind, merged).slice(0, MAX_PER_KIND);
+    state.byKind[kind] = mergeKind(kind, next[kind], state.byKind[kind]);
   }
 
   state.lastRefresh = new Date().toISOString();
@@ -216,4 +224,6 @@ function start() {
   setInterval(() => refresh().catch((err) => console.error('[resources] refresh failed:', err.message)), REFRESH_INTERVAL_MS);
 }
 
-module.exports = { start, ensureReady, refresh, getResources, getCounts, getSnapshot, loadSnapshot, state };
+module.exports = {
+  start, ensureReady, refresh, getResources, getCounts, getSnapshot, loadSnapshot, state, mergeKind,
+};
