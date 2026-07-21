@@ -140,6 +140,7 @@
     link.href = item.link;
     link.target = '_blank';
     link.rel = 'noopener external';
+    link.tabIndex = -1; // card itself is the tab stop; avoid a second stop on the inner link
     link.addEventListener('click', (e) => { e.preventDefault(); openLink(item); });
     title.append(link);
     info.append(title);
@@ -174,6 +175,7 @@
       const btn = el('button', 'explore-tab', label);
       btn.type = 'button';
       btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', key === state.tab ? 'true' : 'false');
       if (key === state.tab) btn.classList.add('active');
       const n = counts && counts[key];
       if (n) btn.append(el('span', 'tab-count', String(n)));
@@ -189,6 +191,7 @@
     for (const { key, label } of EVENT_TYPES) {
       const chip = el('button', 'event-chip', label);
       chip.type = 'button';
+      chip.setAttribute('aria-pressed', key === state.eventType ? 'true' : 'false');
       if (key === state.eventType) chip.classList.add('active');
       chip.addEventListener('click', () => {
         if (state.eventType === key) return;

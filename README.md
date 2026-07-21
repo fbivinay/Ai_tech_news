@@ -68,7 +68,7 @@ public/                 Static frontend (no build step)
 ## Production hardening
 
 - **Security headers** on every response — CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` (`vercel.json` in production, matching middleware in `server.js` for local dev)
-- **Link sanitization** — `normalizeLink()` in `src/store.js` rejects any RSS-supplied link that isn't `http(s)`, so a compromised or malicious feed can't smuggle a `javascript:` URI into a card's link
+- **Link sanitization** — `normalizeLink()` in `src/lib/feed.js` rejects any RSS-supplied link that isn't `http(s)`, so a compromised or malicious feed can't smuggle a `javascript:` URI into a card's link
 - **SEO basics** — `robots.txt`, `sitemap.xml`, and Open Graph/Twitter Card meta tags ship in `public/`
 - **Monitoring-ready `/api/status`** — returns `503` (not a hardcoded `200`) when the store has no items, and never exposes internal per-source fetch-error text, so it's safe to wire up to an external uptime monitor (e.g. UptimeRobot)
 
