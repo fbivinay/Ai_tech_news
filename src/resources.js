@@ -231,11 +231,41 @@ async function enrichJobs() {
   }));
 }
 
-function getResources({ kind, page = 1, limit = 24, type = null } = {}) {
+// City → match pattern (covers alt spellings; Delhi = NCR).
+const CITY_PATTERNS = {
+  bengaluru: /bengaluru|bangalore/i,
+  mumbai: /mumbai/i,
+  hyderabad: /hyderabad/i,
+  pune: /pune/i,
+  chennai: /chennai/i,
+  delhi: /delhi|gurgaon|gurugram|noida/i,
+};
+
+function getResources({ kind, page = 1, limit = 24, type = null, q = null, mode = null, city = null, exp = null } = {}) {
   let items = state.byKind[kind] || [];
   if (type && type !== 'all') {
     if (kind === 'event') items = items.filter((r) => r.meta.type === type);
     if (kind === 'job') items = items.filter((r) => r.meta.field === type);
+  }
+  if (q) {
+    const needle = String(q).toLowerCase();
+    items = items.filter((r) =>
+      `${r.title} ${(r.meta && r.meta.company) || ''} ${(r.meta && r.meta.location) || ''} ${r.source || ''} ${r.blurb || ''}`
+        .toLowerCase().includes(needle));
+  }
+  if (kind === 'job') {
+    if (mode) items = items.filter((r) => (r.meta.mode || '').toLowerCase() === String(mode).toLowerCase());
+    if (city && CITY_PATTERNS[city]) items = items.filter((r) => CITY_PATTERNS[city].test(r.meta.location || ''));
+    if (exp) {
+      items = items.filter((r) => {
+        const m = (r.meta.experience || '').match(/\d+/);
+        if (!m) return false;
+        const n = Number(m[0]);
+        if (exp === '0-2') return n <= 2;
+        if (exp === '3-5') return n >= 3 && n <= 5;
+        return n >= 6; // '6+'
+      });
+    }
   }
   const start = (page - 1) * limit;
   const slice = items.slice(start, start + limit);

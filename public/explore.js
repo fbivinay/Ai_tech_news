@@ -27,10 +27,15 @@
     { key: 'product', label: 'Product & Design' },
   ];
 
-  const state = { tab: 'jobs', eventType: 'all', jobField: 'latest', page: 1, hasMore: false, loading: false, sig: null };
+  const state = {
+    tab: 'jobs', eventType: 'all', jobField: 'latest',
+    q: '', mode: '', city: '', exp: '',
+    page: 1, hasMore: false, loading: false, sig: null,
+  };
 
   const $ = (id) => document.getElementById(id);
   const titleEl = $('explore-title');
+  const toolsEl = $('explore-tools');
   const chipsEl = $('filter-chips');
   const gridEl = $('explore-grid');
   const emptyEl = $('explore-empty');
@@ -237,7 +242,55 @@
     const params = new URLSearchParams({ kind: state.tab, page, limit: 24 });
     if (state.tab === 'events' && state.eventType !== 'all') params.set('type', state.eventType);
     if (state.tab === 'jobs' && state.jobField !== 'latest') params.set('type', state.jobField);
+    if (state.q) params.set('q', state.q);
+    if (state.tab === 'jobs') {
+      if (state.mode) params.set('mode', state.mode);
+      if (state.city) params.set('city', state.city);
+      if (state.exp) params.set('exp', state.exp);
+    }
     return params;
+  }
+
+  /* ---------- Search + filters toolbar ---------- */
+  function makeSelect(label, options, onChange) {
+    const sel = el('select', 'explore-select');
+    sel.setAttribute('aria-label', label);
+    for (const [value, text] of options) {
+      const opt = el('option', null, text);
+      opt.value = value;
+      sel.append(opt);
+    }
+    sel.addEventListener('change', () => onChange(sel.value));
+    return sel;
+  }
+
+  let searchTimer = null;
+  function renderTools() {
+    toolsEl.textContent = '';
+
+    const search = el('input', 'explore-search');
+    search.type = 'search';
+    search.placeholder = state.tab === 'jobs' ? 'Search role, company, skill…' : 'Search…';
+    search.setAttribute('aria-label', 'Search');
+    search.value = state.q;
+    search.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.q = search.value.trim();
+        loadFirstPage();
+      }, 350);
+    });
+    toolsEl.append(search);
+
+    if (state.tab !== 'jobs') return;
+    toolsEl.append(
+      makeSelect('Work mode', [['', 'Mode: Any'], ['Remote', 'Remote'], ['Hybrid', 'Hybrid'], ['On-site', 'On-site']],
+        (v) => { state.mode = v; loadFirstPage(); }),
+      makeSelect('Experience', [['', 'Exp: Any'], ['0-2', '0–2 yrs'], ['3-5', '3–5 yrs'], ['6+', '6+ yrs']],
+        (v) => { state.exp = v; loadFirstPage(); }),
+      makeSelect('City', [['', 'City: Any'], ['bengaluru', 'Bengaluru'], ['mumbai', 'Mumbai'], ['hyderabad', 'Hyderabad'], ['pune', 'Pune'], ['chennai', 'Chennai'], ['delhi', 'Delhi NCR']],
+        (v) => { state.city = v; loadFirstPage(); }),
+    );
   }
 
   // Field chips on the Jobs page (Latest / AI & ML / Data / …).
@@ -350,6 +403,7 @@
     titleEl.textContent = label;
     document.title = `${label} — AI & Tech News`;
     syncNav();
+    renderTools();
     renderJobChips();
     loadFirstPage();
   }

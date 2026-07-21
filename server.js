@@ -73,7 +73,11 @@ app.get('/api/explore', (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(48, Math.max(1, parseInt(req.query.limit, 10) || 24));
   const type = req.query.type || null;
-  res.json(resources.getResources({ kind, page, limit, type }));
+  const str = (v) => (typeof v === 'string' && v ? v.slice(0, 60) : null);
+  res.json(resources.getResources({
+    kind, page, limit, type,
+    q: str(req.query.q), mode: str(req.query.mode), city: str(req.query.city), exp: str(req.query.exp),
+  }));
 });
 
 // Uptime-monitor target: 200 while the store has data, 503 when it doesn't
