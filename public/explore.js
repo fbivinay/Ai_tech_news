@@ -209,12 +209,23 @@
     return params;
   }
 
+  // Header nav links double as tab shortcuts — keep the highlighted one in sync.
+  function syncNav() {
+    document.querySelectorAll('.top-nav a[data-kind]').forEach((a) => {
+      const active = a.dataset.kind === state.tab;
+      a.classList.toggle('active', active);
+      if (active) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  }
+
   function selectTab(key) {
     state.tab = key;
     state.eventType = 'all';
     tabsEl.querySelectorAll('.explore-tab').forEach((b) => b.classList.remove('active'));
     [...tabsEl.querySelectorAll('.explore-tab')][TABS.findIndex((t) => t.key === key)]?.classList.add('active');
     history.replaceState(null, '', `?kind=${key}`);
+    syncNav();
     renderChips();
     loadFirstPage();
   }
@@ -267,6 +278,7 @@
     const wanted = new URLSearchParams(location.search).get('kind');
     if (TABS.some((t) => t.key === wanted)) state.tab = wanted;
     renderTabs(null);
+    syncNav();
     renderChips();
     loadFirstPage();
     try {
