@@ -6,11 +6,11 @@
 
 (() => {
   const TABS = [
-    { key: 'papers', label: 'Papers' },
     { key: 'jobs', label: 'Jobs' },
-    { key: 'events', label: 'Events' },
     { key: 'courses', label: 'Courses' },
+    { key: 'events', label: 'Events' },
     { key: 'hackathons', label: 'Hackathons' },
+    { key: 'papers', label: 'Papers' },
   ];
   const EVENT_TYPES = [
     { key: 'all', label: 'All' },
@@ -19,7 +19,7 @@
     { key: 'session', label: 'Sessions' },
   ];
 
-  const state = { tab: 'papers', eventType: 'all', page: 1, hasMore: false, loading: false };
+  const state = { tab: 'jobs', eventType: 'all', page: 1, hasMore: false, loading: false };
 
   const $ = (id) => document.getElementById(id);
   const tabsEl = $('explore-tabs');
