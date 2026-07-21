@@ -33,6 +33,7 @@ api/                    Vercel serverless functions (production API)
   feed.js               paginated grid (infinite scroll / category filter)
   snapshot.js           full store dump — cold instances hydrate from the CDN copy of this
   rows.js, categories.js, status.js
+  explore.js            Explore resources: papers/jobs/events/courses/hackathons (src/resources.js)
 src/store.js            THE core: fetch/merge/dedupe/refresh, getRows/getFeed/getSnapshot,
                         ensureReady() bootstrap chain
 src/config/sources.js   RSS source list with authority weights
@@ -60,6 +61,7 @@ ANTHROPIC_API_KEY     optional — enables Claude summaries (extractive fallback
 SUMMARY_MODEL         default claude-opus-4-8
 REFRESH_INTERVAL_MS   default 60000
 PORT                  default 3000 (local only)
+EXPLORE_SHEET_ID      optional — Google Sheet id for Explore events/courses (see docs/explore-google-sheet.md)
 ```
 
 On Vercel, set `ANTHROPIC_API_KEY` in Project → Settings → Environment Variables.
