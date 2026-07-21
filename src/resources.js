@@ -9,7 +9,8 @@ const { fetchFeed } = require('./lib/feed');
 const {
   normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeDevpost, normalizeSheetRow,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
-  normalizeRemotive, isIndiaEligibleJob,
+  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE,
+  normalizeGreenhouse, normalizeLever, normalizeAshby,
 } = require('./lib/resource-normalize');
 
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
@@ -57,6 +58,7 @@ async function fetchSheet(tab) {
 }
 
 function normalizeFeedItem(src, raw) {
+  if (src.id.startsWith('themuse')) return normalizeMuse(raw);
   switch (src.id) {
     case 'remoteok': return normalizeRemoteOK(raw);
     case 'wwr': return normalizeWWR(raw);
@@ -64,14 +66,31 @@ function normalizeFeedItem(src, raw) {
     case 'jobicy': return normalizeJobicy(raw);
     case 'himalayas': return normalizeHimalayas(raw);
     case 'remotive': return normalizeRemotive(raw);
-    case 'themuse-1':
-    case 'themuse-2': return normalizeMuse(raw);
     case 'devpost': return normalizeDevpost(raw);
     default: return src.kind === 'paper' ? normalizeArxiv(raw) : null;
   }
 }
 
+// Company career boards on public ATS APIs — every department is listed,
+// so non-tech roles are dropped by title here.
+const ATS_URLS = {
+  greenhouse: (slug) => `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`,
+  lever: (slug) => `https://api.lever.co/v0/postings/${slug}?mode=json`,
+  ashby: (slug) => `https://api.ashbyhq.com/posting-api/job-board/${slug}`,
+};
+const ATS_NORMALIZERS = { greenhouse: normalizeGreenhouse, lever: normalizeLever, ashby: normalizeAshby };
+
+async function fetchATS(src) {
+  const data = await fetchJson(ATS_URLS[src.ats](src.slug));
+  let arr = src.ats === 'lever' ? data : (data && data.jobs);
+  if (!Array.isArray(arr)) arr = [];
+  return arr
+    .map((raw) => ATS_NORMALIZERS[src.ats](raw, src))
+    .filter((r) => r && TECH_TITLE_RE.test(r.title));
+}
+
 async function fetchFeedSource(src) {
+  if (src.type === 'ats') return fetchATS(src);
   if (src.type === 'rss') {
     const feed = await fetchFeed(src.url);
     return (feed.items || []).map((raw) => normalizeFeedItem(src, raw));
@@ -87,8 +106,8 @@ async function fetchFeedSource(src) {
 
 function sortKind(kind, items) {
   if (kind === 'job') {
-    // India-named roles first, newest first within each group.
-    const inIndia = (r) => (/india/i.test((r.meta && r.meta.location) || '') ? 0 : 1);
+    // India-located roles first (city names count), newest first within each group.
+    const inIndia = (r) => (INDIA_RE.test((r.meta && r.meta.location) || '') ? 0 : 1);
     return items.sort((a, b) => inIndia(a) - inIndia(b) || new Date(b.date || 0) - new Date(a.date || 0));
   }
   if (kind === 'paper') {
@@ -118,9 +137,9 @@ function mergeKind(kind, incoming, previous) {
     ));
   }
   // Jobs are India-focused — also scrubs pre-filter records carried in from
-  // an old snapshot.
+  // an old snapshot. Higher cap: company boards supply several hundred.
   if (kind === 'job') result = result.filter(isIndiaEligibleJob);
-  return sortKind(kind, result).slice(0, MAX_PER_KIND);
+  return sortKind(kind, result).slice(0, kind === 'job' ? 300 : MAX_PER_KIND);
 }
 
 let refreshPromise = null;

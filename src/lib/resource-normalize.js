@@ -161,18 +161,94 @@ function normalizeRemotive(j) {
       mode: 'Remote',
       salary: stripHtml(j.salary || '').slice(0, 40),
       type: String(j.job_type || '').replace(/_/g, ' '),
+      experience: expFromText(j.description || ''),
     },
   });
 }
 
-// India focus: a job qualifies if it names India outright, or is remote and
-// open to India (worldwide/anywhere/global/APAC/Asia). Region-locked remote
-// roles (US-only, EMEA…) and other on-site countries are dropped.
+// India, by name or by tech-hub city (ATS boards often write just "Bengaluru").
+const INDIA_RE = /india|bengaluru|bangalore|mumbai|hyderabad|pune|chennai|delhi|noida|gurgaon|gurugram|kochi|ahmedabad|kolkata|jaipur|indore/i;
+
+// India focus: a job qualifies if it names India (or an Indian city), or is
+// remote and open to India (worldwide/anywhere/global/APAC/Asia).
+// Region-locked remote roles (US-only, EMEA…) and other countries drop.
 function isIndiaEligibleJob(record) {
   const loc = (record.meta && record.meta.location) || '';
-  if (/india/i.test(`${loc} ${record.title}`)) return true;
+  if (INDIA_RE.test(`${loc} ${record.title}`)) return true;
   if (record.meta && record.meta.mode === 'Remote' && /worldwide|anywhere|global|apac|asia/i.test(loc)) return true;
   return false;
+}
+
+// Career boards list every department — keep only AI/tech roles.
+const TECH_TITLE_RE = /engineer|developer|data|machine.?learning|\bml\b|\bai\b|scientist|analyst|devops|sre|architect|security|product|design|qa\b|sdet|platform|cloud|backend|frontend|full.?stack|mobile|android|ios\b|research|software|technical|technolog|infra/i;
+
+// "3+ yrs exp" / "2–5 yrs exp" pulled from a description; '' when absent.
+// Only this tiny fact is extracted — the description itself is discarded.
+function expFromText(text) {
+  const m = String(text || '').match(/(\d{1,2})\s*(?:(?:-|–|to)\s*(\d{1,2}))?\s*\+?\s*(?:years?|yrs?)/i);
+  if (!m || Number(m[1]) > 15) return '';
+  return m[2] ? `${m[1]}–${m[2]} yrs exp` : `${m[1]}+ yrs exp`;
+}
+
+// Company logo via the same favicon service the news cards already use.
+function faviconLogo(domain) {
+  return domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128` : null;
+}
+
+// --- ATS normalizers (src carries { company, domain } from config) ---
+
+function normalizeGreenhouse(j, src) {
+  if (!j || !j.title) return null;
+  return makeRecord({
+    kind: 'job',
+    title: j.title,
+    link: j.absolute_url,
+    source: src.company,
+    image: faviconLogo(src.domain),
+    date: j.updated_at || j.first_published || null,
+    meta: { company: src.company, location: (j.location && j.location.name) || '', mode: '', salary: '', type: '', experience: '' },
+  });
+}
+
+function normalizeLever(j, src) {
+  if (!j || !j.text) return null;
+  const wp = String(j.workplaceType || '').toLowerCase();
+  return makeRecord({
+    kind: 'job',
+    title: j.text,
+    link: j.hostedUrl,
+    source: src.company,
+    image: faviconLogo(src.domain),
+    date: j.createdAt ? new Date(j.createdAt).toISOString() : null,
+    meta: {
+      company: src.company,
+      location: (j.categories && j.categories.location) || '',
+      mode: wp === 'remote' ? 'Remote' : wp === 'hybrid' ? 'Hybrid' : wp ? 'On-site' : '',
+      salary: j.salaryRange ? fmtSalary(j.salaryRange.min, j.salaryRange.max, j.salaryRange.currency) : '',
+      type: (j.categories && j.categories.commitment) || '',
+      experience: expFromText(j.descriptionPlain || ''),
+    },
+  });
+}
+
+function normalizeAshby(j, src) {
+  if (!j || !j.title) return null;
+  return makeRecord({
+    kind: 'job',
+    title: j.title,
+    link: j.jobUrl || j.applyUrl,
+    source: src.company,
+    image: faviconLogo(src.domain),
+    date: j.publishedAt || null,
+    meta: {
+      company: src.company,
+      location: [j.location, ...(j.secondaryLocations || []).map((x) => x.location)].filter(Boolean).join(', '),
+      mode: j.isRemote ? 'Remote' : '',
+      salary: (j.compensation && j.compensation.compensationTierSummary) || '',
+      type: j.employmentType || '',
+      experience: expFromText(j.descriptionHtml || ''),
+    },
+  });
 }
 
 function normalizeMuse(j) {
@@ -190,6 +266,7 @@ function normalizeMuse(j) {
       mode: /remote|flexible/i.test(location) ? 'Remote' : '',
       salary: '',
       type: '',
+      experience: expFromText(j.contents || ''),
     },
   });
 }
@@ -265,6 +342,7 @@ function normalizeSheetRow(row, kind) {
 module.exports = {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
-  normalizeRemotive, isIndiaEligibleJob,
+  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText,
+  normalizeGreenhouse, normalizeLever, normalizeAshby,
   normalizeDevpost, normalizeSheetRow,
 };

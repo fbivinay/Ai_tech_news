@@ -824,7 +824,8 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .explore-title { margin: 0; font-size: clamp(26px, 3vw, 38px); font-weight: 900; letter-spacing: -0.015em; }
 
 .job-head { display: flex; align-items: center; gap: 9px; }
-.job-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; background: var(--chip-bg); }
+.job-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background: var(--chip-bg); }
+.job-logo-ph { display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: var(--ink-soft); }
 .job-company { font-weight: 700; font-size: 13.5px; color: var(--ink-soft); }
 .job-card .card-title { margin: 8px 0 0; }
 
