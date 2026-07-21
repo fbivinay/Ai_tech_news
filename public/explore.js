@@ -22,7 +22,7 @@
   const state = { tab: 'jobs', eventType: 'all', page: 1, hasMore: false, loading: false };
 
   const $ = (id) => document.getElementById(id);
-  const tabsEl = $('explore-tabs');
+  const titleEl = $('explore-title');
   const chipsEl = $('event-chips');
   const gridEl = $('explore-grid');
   const emptyEl = $('explore-empty');
@@ -168,22 +168,7 @@
     return card;
   }
 
-  /* ---------- Tabs + chips ---------- */
-  function renderTabs(counts) {
-    tabsEl.textContent = '';
-    for (const { key, label } of TABS) {
-      const btn = el('button', 'explore-tab', label);
-      btn.type = 'button';
-      btn.setAttribute('role', 'tab');
-      btn.setAttribute('aria-selected', key === state.tab ? 'true' : 'false');
-      if (key === state.tab) btn.classList.add('active');
-      const n = counts && counts[key];
-      if (n) btn.append(el('span', 'tab-count', String(n)));
-      btn.addEventListener('click', () => { if (state.tab !== key) selectTab(key); });
-      tabsEl.append(btn);
-    }
-  }
-
+  /* ---------- Chips ---------- */
   function renderChips() {
     chipsEl.textContent = '';
     chipsEl.hidden = state.tab !== 'events';
@@ -217,17 +202,6 @@
       if (active) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });
-  }
-
-  function selectTab(key) {
-    state.tab = key;
-    state.eventType = 'all';
-    tabsEl.querySelectorAll('.explore-tab').forEach((b) => b.classList.remove('active'));
-    [...tabsEl.querySelectorAll('.explore-tab')][TABS.findIndex((t) => t.key === key)]?.classList.add('active');
-    history.replaceState(null, '', `?kind=${key}`);
-    syncNav();
-    renderChips();
-    loadFirstPage();
   }
 
   async function loadFirstPage() {
@@ -274,17 +248,15 @@
   moreBtn.addEventListener('click', loadMore);
 
   /* ---------- Boot ---------- */
-  async function boot() {
+  function boot() {
     const wanted = new URLSearchParams(location.search).get('kind');
     if (TABS.some((t) => t.key === wanted)) state.tab = wanted;
-    renderTabs(null);
+    const label = TABS.find((t) => t.key === state.tab).label;
+    titleEl.textContent = label;
+    document.title = `${label} — AI & Tech News`;
     syncNav();
     renderChips();
     loadFirstPage();
-    try {
-      const meta = await getJSON('/api/explore');
-      renderTabs(meta.counts);
-    } catch { /* counts are cosmetic — ignore */ }
   }
   boot();
 })();
