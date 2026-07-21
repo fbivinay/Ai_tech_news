@@ -31,17 +31,21 @@ non-news content.
 | Kind | Tab | Live source (auto-updating) | Notes |
 |---|---|---|---|
 | Papers | Papers | arXiv RSS (`cs.AI`, `cs.LG`, `cs.CL`) | Feed reuse |
-| Jobs | Jobs | RemoteOK JSON API + WeWorkRemotely RSS + HN "who's hiring" (Algolia API) | No key |
-| Hackathons | Hackathons | Devpost feed | Drop past `deadline` |
-| Conferences | Events (chip) | `confs.tech` open dataset (live JSON) | Community-maintained |
-| Workshops | Events (chip) | **Google Sheet → published JSON** | User-editable, no redeploy |
-| Sessions | Events (chip) | **Google Sheet → published JSON** | Same sheet, `type` column |
-| Courses / certs | Courses | **Google Sheet → published JSON** | User-editable, no redeploy |
+| Jobs | Jobs | RemoteOK JSON API + WeWorkRemotely RSS | No key |
+| Hackathons | Hackathons | Devpost JSON API (`/api/hackathons`) | Drop `open_state == ended` |
+| Conferences / Workshops / Sessions | Events (chips) | **Google Sheet → published JSON** (`events` tab, `type` column) | User-editable, no redeploy |
+| Courses / certs | Courses | **Google Sheet → published JSON** (`courses` tab) | User-editable, no redeploy |
 
-The Google Sheet is published as JSON (gviz endpoint, no key). One sheet, one
-tab per kind or a `kind`/`type` column. App refetches it every cycle → a row
-edit is live within one refresh interval. The app tolerates the sheet being
-missing, empty, or unreachable (renders whatever else is available).
+The Google Sheet is published as JSON (gviz endpoint, no key). One spreadsheet,
+two tabs: `events` (with a `type` column = conference/workshop/session) and
+`courses`. The app refetches it every cycle → a row edit is live within one
+refresh interval. The app tolerates the sheet being missing, empty, or
+unreachable (renders whatever else is available). Sheet id via env
+`EXPLORE_SHEET_ID`; unset → those tabs are simply empty.
+
+**Dropped from Phase 1** (noted for later, not built now): HN "who's hiring"
+(needs monthly-thread scraping) and `confs.tech` (events come from the Sheet
+instead — fewer moving parts, still live).
 
 ## Data model
 
