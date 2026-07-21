@@ -5,29 +5,17 @@
 // attribution, tags — never a full article body), classifies and scores it,
 // and exposes a sorted, deduplicated list plus a hero pick.
 
-const crypto = require('crypto');
-const Parser = require('rss-parser');
 const SOURCES = require('./config/sources');
+const { fetchFeed, hashId, normalizeLink, BROWSER_UA } = require('./lib/feed');
 const { stripHtml, truncateWords } = require('./lib/text');
 const { classify } = require('./lib/classify');
 const { scoreItem } = require('./lib/score');
 const { summarizeAll, aiEnabled } = require('./lib/summarize');
 
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
-const FETCH_TIMEOUT_MS = 7000;
 const MAX_ITEMS_PER_SOURCE = 20;
 const MAX_AGE_DAYS = 7;
 const HERO_MAX_AGE_HOURS = 36;
-
-const parser = new Parser({
-  customFields: {
-    item: [
-      ['media:content', 'mediaContent', { keepArray: true }],
-      ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
-      ['content:encoded', 'contentEncoded'],
-    ],
-  },
-});
 
 const state = {
   items: [],
@@ -36,24 +24,6 @@ const state = {
   refreshing: false,
   sourceStatus: {},
 };
-
-function hashId(link) {
-  return crypto.createHash('sha1').update(link).digest('hex').slice(0, 16);
-}
-
-function normalizeLink(link) {
-  try {
-    const url = new URL(link);
-    if (!/^https?:$/i.test(url.protocol)) return null;
-    url.hash = '';
-    for (const param of [...url.searchParams.keys()]) {
-      if (/^(utm_|fbclid|gclid|ref$)/i.test(param)) url.searchParams.delete(param);
-    }
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
 
 function extractImage(entry) {
   const fromMedia = (list) => {
@@ -79,31 +49,6 @@ function extractImage(entry) {
     enclosureUrl ||
     (imgMatch && /^https?:/i.test(imgMatch[1]) ? imgMatch[1] : null)
   );
-}
-
-// Several publishers 403 non-browser user agents on their public endpoints.
-const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
-
-async function fetchFeed(source) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(source.url, {
-      signal: controller.signal,
-      headers: {
-        'user-agent': BROWSER_UA,
-        accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const xml = await res.text();
-    // Escape stray ampersands that aren't part of an entity — some feeds ship
-    // malformed XML that the strict parser would otherwise reject outright.
-    const sanitized = xml.replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
-    return await parser.parseString(sanitized);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 // Some feeds (TechCrunch, CNBC, Bleeping Computer…) ship no image tags at
@@ -195,7 +140,7 @@ function refresh(options = {}) {
 }
 
 async function doRefresh({ maxSummaryBatches = Infinity } = {}) {
-  const results = await Promise.allSettled(SOURCES.map((source) => fetchFeed(source)));
+  const results = await Promise.allSettled(SOURCES.map((source) => fetchFeed(source.url)));
 
   const incoming = [];
   results.forEach((result, i) => {
