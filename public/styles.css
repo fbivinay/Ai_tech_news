@@ -808,3 +808,67 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
   .sk::after { animation: none; }
   .spinner { animation-duration: 1.6s; }
 }
+
+/* ---------- Top nav + Explore ---------- */
+
+.top-nav { display: flex; gap: 18px; }
+.top-nav a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 4px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+.top-nav a:hover { color: var(--ink); }
+.top-nav a.active { color: var(--red); border-bottom-color: var(--red); }
+
+.explore-head { margin: 26px 0 10px; }
+.explore-title { margin: 0; font-size: clamp(26px, 3vw, 38px); font-weight: 900; letter-spacing: -0.015em; }
+.explore-sub { margin: 6px 0 0; color: var(--ink-soft); font-size: 15px; }
+
+.explore-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 14px; scrollbar-width: none; }
+.explore-tabs::-webkit-scrollbar { display: none; }
+.explore-tab {
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.explore-tab:hover { border-color: var(--ink-faint); color: var(--ink); }
+.explore-tab.active { background: var(--red); border-color: var(--red); color: #fff; }
+.explore-tab .tab-count { opacity: 0.7; font-weight: 600; margin-left: 4px; }
+
+.event-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 14px; }
+.event-chip {
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.event-chip:hover { border-color: var(--ink-faint); color: var(--ink); }
+.event-chip.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+.res-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.res-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--chip-ink);
+  background: var(--chip-bg);
+  border-radius: 6px;
+  padding: 3px 9px;
+}
+.res-badge.free { color: #0a7d33; background: rgba(10, 125, 51, 0.12); }
+html[data-theme='dark'] .res-badge.free { color: #59d98a; background: rgba(89, 217, 138, 0.14); }
