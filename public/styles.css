@@ -104,7 +104,6 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 }
 .brand-text em { font-style: normal; color: var(--red); }
 
-.tagline { margin: 0; color: var(--ink-faint); font-size: 13px; flex: 1; }
 
 .dev-credit { margin: 0; padding: 0 24px 10px; color: var(--ink-faint); font-size: 13px; text-align: center; }
 .dev-name { color: var(--red); font-weight: 800; }
@@ -773,7 +772,6 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 
 @media (max-width: 1000px) {
   .feed-grid { grid-template-columns: repeat(3, 1fr); }
-  .tagline { display: none; }
 }
 
 @media (max-width: 760px) {
@@ -811,7 +809,7 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 
 /* ---------- Top nav + Explore ---------- */
 
-.top-nav { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.top-nav { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; flex: 1; }
 .top-nav::-webkit-scrollbar { display: none; }
 @media (max-width: 760px) {
   .top-nav { gap: 12px; }
