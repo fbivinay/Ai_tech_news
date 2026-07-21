@@ -39,4 +39,41 @@ resources.state.byKind = { paper: [], job: [], event: [], course: [], hackathon:
 assert.strictEqual(resources.loadSnapshot(snap), true);
 assert.strictEqual(resources.getCounts().papers, 30);
 
+// --- mergeKind: merge-not-replace invariant (no network) ---
+
+// MERGE PRESERVE: a source that returns nothing this round keeps prior cards.
+const preserved = resources.mergeKind('paper', [], [
+  { id: 'a', kind: 'paper', title: 'A', meta: {} },
+]);
+assert.strictEqual(preserved.length, 1);
+assert.strictEqual(preserved[0].id, 'a');
+
+// NO DUPLICATE: same id in both incoming and previous → one record, and
+// incoming wins (current dedupe seeds `next[kind]` first, so previous items
+// with an id already present in incoming are skipped).
+const deduped = resources.mergeKind('paper', [
+  { id: 'a', kind: 'paper', title: 'A (new)', meta: {} },
+], [
+  { id: 'a', kind: 'paper', title: 'A (old)', meta: {} },
+]);
+assert.strictEqual(deduped.length, 1);
+assert.strictEqual(deduped[0].title, 'A (new)');
+
+// STALE EVENT REDROP: a previously-future event that's now past gets dropped
+// on re-merge; a still-future event survives.
+const events = resources.mergeKind('event', [], [
+  {
+    id: 'e1', kind: 'event', title: 'Old', link: 'https://x.com/e1', date: '2000-01-01', meta: { type: 'conference' },
+  },
+]);
+assert.strictEqual(events.length, 0);
+
+const futureEvents = resources.mergeKind('event', [], [
+  {
+    id: 'e2', kind: 'event', title: 'New', link: 'https://x.com/e2', date: '2099-01-01', meta: { type: 'conference' },
+  },
+]);
+assert.strictEqual(futureEvents.length, 1);
+assert.strictEqual(futureEvents[0].id, 'e2');
+
 console.log('resources.test OK');
