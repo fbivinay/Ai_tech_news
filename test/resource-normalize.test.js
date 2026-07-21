@@ -2,7 +2,8 @@ const assert = require('assert');
 const {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
-  normalizeRemotive, isIndiaEligibleJob,
+  normalizeRemotive, isIndiaEligibleJob, expFromText,
+  normalizeGreenhouse, normalizeLever, normalizeAshby,
   normalizeDevpost, normalizeSheetRow,
 } = require('../src/lib/resource-normalize');
 
@@ -98,5 +99,32 @@ assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Worldwi
 assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'APAC', mode: 'Remote' } }), true);
 assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'USA', mode: 'Remote' } }), false);
 assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Berlin', mode: 'On-site' } }), false);
+
+// India eligibility: bare Indian city names count (ATS boards write "Bengaluru")
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Bengaluru', mode: '' } }), true);
+assert.strictEqual(isIndiaEligibleJob({ title: 'SWE', meta: { location: 'Gurugram', mode: '' } }), true);
+
+// Experience extraction
+assert.strictEqual(expFromText('We need 3+ years of Python experience'), '3+ yrs exp');
+assert.strictEqual(expFromText('Requires 2-5 years in ML'), '2–5 yrs exp');
+assert.strictEqual(expFromText('401k plan, no exp mentioned'), '');
+
+// Greenhouse: company/domain from src, favicon logo
+const src = { company: 'PhonePe', domain: 'phonepe.com' };
+const gh = normalizeGreenhouse({ title: 'Backend Engineer', absolute_url: 'https://boards.greenhouse.io/phonepe/jobs/1', location: { name: 'Bengaluru' }, updated_at: '2026-07-20T00:00:00Z' }, src);
+assert.strictEqual(gh.meta.company, 'PhonePe');
+assert.strictEqual(gh.meta.location, 'Bengaluru');
+assert.ok(gh.image.includes('phonepe.com'));
+
+// Lever: salary range + workplace type + exp from description
+const lv = normalizeLever({ text: 'Data Scientist', hostedUrl: 'https://jobs.lever.co/meesho/1', createdAt: 1752000000000, workplaceType: 'hybrid', salaryRange: { min: 2000000, max: 3500000, currency: 'INR' }, categories: { location: 'Bangalore', commitment: 'Full-time' }, descriptionPlain: 'Minimum 4+ years experience' }, { company: 'Meesho', domain: 'meesho.com' });
+assert.strictEqual(lv.meta.mode, 'Hybrid');
+assert.strictEqual(lv.meta.salary, '₹2000k–₹3500k');
+assert.strictEqual(lv.meta.experience, '4+ yrs exp');
+
+// Ashby: compensation summary + secondary locations
+const as = normalizeAshby({ title: 'Platform Engineer', jobUrl: 'https://jobs.ashbyhq.com/atlan/1', location: 'Bengaluru', secondaryLocations: [{ location: 'Mumbai' }], isRemote: false, employmentType: 'FullTime', compensation: { compensationTierSummary: '₹30L – ₹45L' }, publishedAt: '2026-07-20T00:00:00Z' }, { company: 'Atlan', domain: 'atlan.com' });
+assert.strictEqual(as.meta.salary, '₹30L – ₹45L');
+assert.strictEqual(as.meta.location, 'Bengaluru, Mumbai');
 
 console.log('resource-normalize.test OK');

@@ -25,6 +25,30 @@ const FEED_SOURCES = [
   { id: 'remoteok', kind: 'job', type: 'json', url: 'https://remoteok.com/api', arrayPath: null },
   { id: 'jobicy', kind: 'job', type: 'json', url: 'https://jobicy.com/api/v2/remote-jobs?count=50&geo=apac', arrayPath: 'jobs' },
   { id: 'himalayas', kind: 'job', type: 'json', url: 'https://himalayas.app/jobs/api?limit=50', arrayPath: 'jobs' },
+
+  // Company career boards via public ATS APIs (Greenhouse/Lever/Ashby) —
+  // keyless JSON, straight from the employer, India-filtered downstream.
+  // Probed live 2026-07-21; boards that stop responding are tolerated.
+  ...[
+    ['greenhouse', 'phonepe', 'PhonePe', 'phonepe.com'],
+    ['greenhouse', 'groww', 'Groww', 'groww.in'],
+    ['greenhouse', 'postman', 'Postman', 'postman.com'],
+    ['greenhouse', 'rubrik', 'Rubrik', 'rubrik.com'],
+    ['greenhouse', 'databricks', 'Databricks', 'databricks.com'],
+    ['greenhouse', 'stripe', 'Stripe', 'stripe.com'],
+    ['greenhouse', 'mongodb', 'MongoDB', 'mongodb.com'],
+    ['greenhouse', 'zscaler', 'Zscaler', 'zscaler.com'],
+    ['greenhouse', 'twilio', 'Twilio', 'twilio.com'],
+    ['greenhouse', 'elastic', 'Elastic', 'elastic.co'],
+    ['greenhouse', 'hackerrank', 'HackerRank', 'hackerrank.com'],
+    ['greenhouse', 'razorpaysoftwareprivatelimited', 'Razorpay', 'razorpay.com'],
+    ['greenhouse', 'datadog', 'Datadog', 'datadoghq.com'],
+    ['lever', 'meesho', 'Meesho', 'meesho.com'],
+    ['lever', 'cred', 'CRED', 'cred.club'],
+    ['ashby', 'atlan', 'Atlan', 'atlan.com'],
+  ].map(([ats, slug, company, domain]) => ({
+    id: `${ats}-${slug}`, kind: 'job', type: 'ats', ats, slug, company, domain,
+  })),
   { id: 'devpost', kind: 'hackathon', type: 'json', url: 'https://devpost.com/api/hackathons', arrayPath: 'hackathons' },
 ];
 

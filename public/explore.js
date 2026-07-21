@@ -127,13 +127,16 @@
     const m = item.meta || {};
 
     const head = el('div', 'job-head');
+    const initial = el('span', 'job-logo job-logo-ph', (m.company || item.source || '?').slice(0, 1).toUpperCase());
     if (item.image) {
       const logo = el('img', 'job-logo');
       logo.src = item.image;
       logo.alt = '';
       logo.loading = 'lazy';
-      logo.addEventListener('error', () => logo.remove());
+      logo.addEventListener('error', () => logo.replaceWith(initial));
       head.append(logo);
+    } else {
+      head.append(initial);
     }
     head.append(el('span', 'job-company', m.company || item.source));
     info.append(head);
@@ -142,6 +145,7 @@
 
     const row = el('div', 'res-badges');
     if (m.salary) row.append(el('span', 'res-badge free', m.salary));
+    if (m.experience) row.append(el('span', 'res-badge', m.experience));
     if (m.type) row.append(el('span', 'res-badge', m.type));
     if (m.mode) row.append(el('span', 'res-badge', m.mode));
     if (m.location) row.append(el('span', 'res-badge', m.location));
