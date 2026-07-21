@@ -7,8 +7,8 @@
   <meta name="description" content="Explore AI & tech research papers, jobs, events, free courses, and hackathons — always up to date, linking to the source." />
   <link rel="canonical" href="https://ai-tech-news-alpha.vercel.app/explore.html" />
   <link rel="icon" type="image/png" href="logo.png" />
-  <link rel="stylesheet" href="styles.css?v=15" />
-  <link rel="preload" href="explore.js?v=14" as="script" />
+  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="preload" href="explore.js?v=15" as="script" />
 </head>
 <body>
   <header class="site-header">
@@ -19,11 +19,12 @@
       </a>
       <nav class="top-nav" aria-label="Primary">
         <a href="/">News</a>
-        <a href="/explore.html?kind=jobs" data-kind="jobs">Jobs</a>
-        <a href="/explore.html?kind=courses" data-kind="courses">Courses</a>
-        <a href="/explore.html?kind=events" data-kind="events">Events</a>
-        <a href="/explore.html?kind=hackathons" data-kind="hackathons">Hackathons</a>
-        <a href="/explore.html?kind=papers" data-kind="papers">Papers</a>
+        <a href="/explore.html?kind=jobs" data-kind="jobs" data-type="">Jobs</a>
+        <a href="/explore.html?kind=courses" data-kind="courses" data-type="">Courses</a>
+        <a href="/explore.html?kind=hackathons" data-kind="hackathons" data-type="">Hackathons</a>
+        <a href="/explore.html?kind=events" data-kind="events" data-type="">Events</a>
+        <a href="/explore.html?kind=events&amp;type=workshop" data-kind="events" data-type="workshop">Workshops</a>
+        <a href="/explore.html?kind=events&amp;type=conference" data-kind="events" data-type="conference">Conferences</a>
       </nav>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
     </div>
@@ -34,8 +35,6 @@
       <div class="explore-head">
         <h1 class="explore-title" id="explore-title"></h1>
       </div>
-
-      <div id="event-chips" class="event-chips" hidden></div>
 
       <div id="explore-grid" class="feed-grid" aria-live="polite"></div>
       <div id="explore-empty" class="end-note" hidden>Nothing here right now — check back soon.</div>
@@ -68,6 +67,6 @@
     </div>
   </div>
 
-  <script src="explore.js?v=14"></script>
+  <script src="explore.js?v=15"></script>
 </body>
 </html>
