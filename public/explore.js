@@ -16,10 +16,22 @@
   // shows every type (sessions included).
   const EVENT_TYPE_LABELS = { workshop: 'Workshops', conference: 'Conferences' };
 
-  const state = { tab: 'jobs', eventType: 'all', page: 1, hasMore: false, loading: false, sig: null };
+  // Jobs field chips — keys match meta.field set by the backend classifier.
+  const JOB_FIELDS = [
+    { key: 'latest', label: 'Latest' },
+    { key: 'ai', label: 'AI & ML' },
+    { key: 'data', label: 'Data' },
+    { key: 'engineering', label: 'Engineering' },
+    { key: 'devops', label: 'DevOps & Cloud' },
+    { key: 'security', label: 'Security' },
+    { key: 'product', label: 'Product & Design' },
+  ];
+
+  const state = { tab: 'jobs', eventType: 'all', jobField: 'latest', page: 1, hasMore: false, loading: false, sig: null };
 
   const $ = (id) => document.getElementById(id);
   const titleEl = $('explore-title');
+  const chipsEl = $('filter-chips');
   const gridEl = $('explore-grid');
   const emptyEl = $('explore-empty');
   const moreBtn = $('explore-more');
@@ -97,6 +109,16 @@
     window.open(item.link, '_blank', 'noopener');
   }
 
+  function timeAgo(iso) {
+    if (!iso) return 'Recently';
+    const days = Math.max(0, (Date.now() - new Date(iso).getTime()) / 864e5);
+    if (Number.isNaN(days)) return 'Recently';
+    if (days < 1) return 'Today';
+    if (days < 2) return 'Yesterday';
+    if (days < 30) return `${Math.floor(days)}d ago`;
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
   /* ---------- Card ---------- */
   function wireClickable(card, item) {
     card.tabIndex = 0;
@@ -143,9 +165,12 @@
 
     info.append(cardTitle(item));
 
+    // Salary, experience, posted-time always shown — "not disclosed" when
+    // the employer didn't publish it (we never invent numbers).
     const row = el('div', 'res-badges');
-    if (m.salary) row.append(el('span', 'res-badge free', m.salary));
-    if (m.experience) row.append(el('span', 'res-badge', m.experience));
+    row.append(el('span', m.salary ? 'res-badge free' : 'res-badge muted', m.salary || 'Salary not disclosed'));
+    row.append(el('span', m.experience ? 'res-badge' : 'res-badge muted', m.experience || 'Exp not listed'));
+    row.append(el('span', 'res-badge', timeAgo(item.date)));
     if (m.type) row.append(el('span', 'res-badge', m.type));
     if (m.mode) row.append(el('span', 'res-badge', m.mode));
     if (m.location) row.append(el('span', 'res-badge', m.location));
@@ -211,7 +236,29 @@
   function tabParams(page) {
     const params = new URLSearchParams({ kind: state.tab, page, limit: 24 });
     if (state.tab === 'events' && state.eventType !== 'all') params.set('type', state.eventType);
+    if (state.tab === 'jobs' && state.jobField !== 'latest') params.set('type', state.jobField);
     return params;
+  }
+
+  // Field chips on the Jobs page (Latest / AI & ML / Data / …).
+  function renderJobChips() {
+    chipsEl.hidden = state.tab !== 'jobs';
+    chipsEl.textContent = '';
+    if (state.tab !== 'jobs') return;
+    for (const { key, label } of JOB_FIELDS) {
+      const chip = el('button', 'filter-chip', label);
+      chip.type = 'button';
+      chip.setAttribute('aria-pressed', key === state.jobField ? 'true' : 'false');
+      if (key === state.jobField) chip.classList.add('active');
+      chip.addEventListener('click', () => {
+        if (state.jobField === key) return;
+        state.jobField = key;
+        history.replaceState(null, '', key === 'latest' ? '?kind=jobs' : `?kind=jobs&type=${key}`);
+        renderJobChips();
+        loadFirstPage();
+      });
+      chipsEl.append(chip);
+    }
   }
 
   // Highlight the nav link matching this page (kind + event type).
@@ -295,6 +342,7 @@
     if (KINDS.some((k) => k.key === wanted)) state.tab = wanted;
     const type = query.get('type');
     if (state.tab === 'events' && EVENT_TYPE_LABELS[type]) state.eventType = type;
+    if (state.tab === 'jobs' && JOB_FIELDS.some((f) => f.key === type)) state.jobField = type;
 
     const label = state.eventType !== 'all'
       ? EVENT_TYPE_LABELS[state.eventType]
@@ -302,6 +350,7 @@
     titleEl.textContent = label;
     document.title = `${label} — AI & Tech News`;
     syncNav();
+    renderJobChips();
     loadFirstPage();
   }
   boot();

@@ -823,6 +823,23 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .explore-head { margin: 26px 0 14px; }
 .explore-title { margin: 0; font-size: clamp(26px, 3vw, 38px); font-weight: 900; letter-spacing: -0.015em; }
 
+.filter-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 14px; }
+.filter-chip {
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.filter-chip:hover { border-color: var(--ink-faint); color: var(--ink); }
+.filter-chip.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+.res-badge.muted { opacity: 0.55; font-weight: 600; }
+
 .job-head { display: flex; align-items: center; gap: 9px; }
 .job-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background: var(--chip-bg); }
 .job-logo-ph { display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: var(--ink-soft); }

@@ -27,6 +27,22 @@ const workshops = resources.getResources({ kind: 'event', type: 'workshop' });
 assert.strictEqual(workshops.items.length, 1);
 assert.strictEqual(workshops.items[0].id, 'e2');
 
+// job field filter
+resources.state.byKind.job = [
+  { id: 'j1', kind: 'job', title: 'ML Engineer', meta: { field: 'ai' } },
+  { id: 'j2', kind: 'job', title: 'Backend Dev', meta: { field: 'engineering' } },
+];
+const aiJobs = resources.getResources({ kind: 'job', type: 'ai' });
+assert.strictEqual(aiJobs.items.length, 1);
+assert.strictEqual(aiJobs.items[0].id, 'j1');
+resources.state.byKind.job = [];
+
+// mergeKind tags job field on merged records (incl. snapshot-hydrated ones)
+const taggedJobs = resources.mergeKind('job', [], [
+  { id: 'j3', kind: 'job', title: 'Data Analyst', link: 'https://x.com/j3', date: '2026-07-01', meta: { location: 'Bengaluru', mode: '' } },
+]);
+assert.strictEqual(taggedJobs[0].meta.field, 'data');
+
 // counts use plural tab names
 const counts = resources.getCounts();
 assert.strictEqual(counts.papers, 30);

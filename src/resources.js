@@ -9,7 +9,7 @@ const { fetchFeed } = require('./lib/feed');
 const {
   normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeDevpost, normalizeSheetRow,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
-  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE,
+  normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
 } = require('./lib/resource-normalize');
 
@@ -105,12 +105,7 @@ async function fetchFeedSource(src) {
 }
 
 function sortKind(kind, items) {
-  if (kind === 'job') {
-    // India-located roles first (city names count), newest first within each group.
-    const inIndia = (r) => (INDIA_RE.test((r.meta && r.meta.location) || '') ? 0 : 1);
-    return items.sort((a, b) => inIndia(a) - inIndia(b) || new Date(b.date || 0) - new Date(a.date || 0));
-  }
-  if (kind === 'paper') {
+  if (kind === 'job' || kind === 'paper') {
     return items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }
   if (kind === 'event') {
@@ -138,7 +133,11 @@ function mergeKind(kind, incoming, previous) {
   }
   // Jobs are India-focused — also scrubs pre-filter records carried in from
   // an old snapshot. Higher cap: company boards supply several hundred.
-  if (kind === 'job') result = result.filter(isIndiaEligibleJob);
+  if (kind === 'job') {
+    result = result.filter(isIndiaEligibleJob);
+    // Field tag for the chips filter; also backfills snapshot-hydrated records.
+    for (const r of result) { if (!r.meta.field) r.meta.field = classifyJobField(r.title); }
+  }
   return sortKind(kind, result).slice(0, kind === 'job' ? 300 : MAX_PER_KIND);
 }
 
@@ -193,8 +192,9 @@ async function doRefresh() {
 
 function getResources({ kind, page = 1, limit = 24, type = null } = {}) {
   let items = state.byKind[kind] || [];
-  if (kind === 'event' && type && type !== 'all') {
-    items = items.filter((r) => r.meta.type === type);
+  if (type && type !== 'all') {
+    if (kind === 'event') items = items.filter((r) => r.meta.type === type);
+    if (kind === 'job') items = items.filter((r) => r.meta.field === type);
   }
   const start = (page - 1) * limit;
   const slice = items.slice(start, start + limit);

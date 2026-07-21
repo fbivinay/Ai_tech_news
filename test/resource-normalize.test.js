@@ -109,6 +109,15 @@ assert.strictEqual(expFromText('We need 3+ years of Python experience'), '3+ yrs
 assert.strictEqual(expFromText('Requires 2-5 years in ML'), '2–5 yrs exp');
 assert.strictEqual(expFromText('401k plan, no exp mentioned'), '');
 
+// Job field classification — first match wins, engineering catch-all
+const { classifyJobField } = require('../src/lib/resource-normalize');
+assert.strictEqual(classifyJobField('Machine Learning Engineer'), 'ai');
+assert.strictEqual(classifyJobField('Senior Data Engineer'), 'data');
+assert.strictEqual(classifyJobField('Offensive Security Professional'), 'security');
+assert.strictEqual(classifyJobField('Product Designer'), 'product');
+assert.strictEqual(classifyJobField('Site Reliability Engineer'), 'devops');
+assert.strictEqual(classifyJobField('Backend Developer'), 'engineering');
+
 // Greenhouse: company/domain from src, favicon logo
 const src = { company: 'PhonePe', domain: 'phonepe.com' };
 const gh = normalizeGreenhouse({ title: 'Backend Engineer', absolute_url: 'https://boards.greenhouse.io/phonepe/jobs/1', location: { name: 'Bengaluru' }, updated_at: '2026-07-20T00:00:00Z' }, src);
