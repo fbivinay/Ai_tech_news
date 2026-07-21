@@ -9,7 +9,7 @@ const FEED_SOURCES = [
     id: `arxiv-${cat}`,
     kind: 'paper',
     type: 'rss',
-    url: `http://export.arxiv.org/rss/${cat}`,
+    url: `https://export.arxiv.org/rss/${cat}`,
   })),
   { id: 'remoteok', kind: 'job', type: 'json', url: 'https://remoteok.com/api', arrayPath: null },
   { id: 'wwr', kind: 'job', type: 'rss', url: 'https://weworkremotely.com/categories/remote-programming-jobs.rss' },
