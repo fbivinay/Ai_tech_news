@@ -27,9 +27,12 @@
     { key: 'product', label: 'Product & Design' },
   ];
 
+  // Topic chips for courses / events / hackathons (server tags meta.category).
+  const CATEGORIES = ['Generative AI', 'LLMs', 'AI Agents', 'Prompt Engineering', 'RAG', 'Machine Learning', 'Deep Learning', 'NLP', 'Computer Vision', 'MLOps', 'Data Science', 'Python', 'SQL', 'Cloud', 'Cybersecurity', 'DevOps'];
+
   const state = {
     tab: 'jobs', eventType: 'all', jobField: 'latest',
-    q: '', mode: '', city: '', exp: '',
+    q: '', mode: '', city: '', exp: '', category: 'all', free: '',
     page: 1, hasMore: false, loading: false, sig: null,
   };
 
@@ -192,17 +195,21 @@
     if (item.kind === 'paper' && m.authors) out.push({ text: m.authors });
     if (item.kind === 'event') {
       if (m.type) out.push({ text: m.type.charAt(0).toUpperCase() + m.type.slice(1) });
+      if (m.category) out.push({ text: m.category });
       if (item.date) out.push({ text: new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
       if (m.city) out.push({ text: m.city });
-      if (m.mode) out.push({ text: m.mode });
+      if (m.mode) out.push({ text: m.mode === 'in-person' ? 'In-person' : 'Online' });
       if (m.free) out.push({ text: 'Free', free: true });
     }
     if (item.kind === 'course') {
-      if (m.provider) out.push({ text: m.provider });
+      if (m.category) out.push({ text: m.category });
       if (m.level) out.push({ text: m.level });
+      if (m.duration) out.push({ text: m.duration });
+      out.push(m.free ? { text: 'Free', free: true } : { text: 'Paid' });
       if (m.cert) out.push({ text: 'Certificate', free: true });
     }
     if (item.kind === 'hackathon') {
+      if (m.category) out.push({ text: m.category });
       if (m.deadline) out.push({ text: m.deadline });
       if (m.mode) out.push({ text: m.mode });
       if (m.prize) out.push({ text: m.prize });
@@ -215,6 +222,17 @@
 
     const card = el('article', 'news-card');
     card.style.setProperty('--i', Math.min(i, 11));
+
+    if (item.image) {
+      const media = el('div', 'res-media');
+      const img = el('img');
+      img.src = item.image;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.addEventListener('error', () => media.remove());
+      media.append(img);
+      card.append(media);
+    }
 
     const info = el('div', 'card-info');
     info.append(cardTitle(item));
@@ -247,6 +265,10 @@
       if (state.mode) params.set('mode', state.mode);
       if (state.city) params.set('city', state.city);
       if (state.exp) params.set('exp', state.exp);
+    } else {
+      if (state.category !== 'all') params.set('category', state.category);
+      if (state.free) params.set('free', state.free);
+      if (state.tab === 'events' && state.mode) params.set('mode', state.mode);
     }
     return params;
   }
@@ -282,32 +304,58 @@
     });
     toolsEl.append(search);
 
-    if (state.tab !== 'jobs') return;
-    toolsEl.append(
-      makeSelect('Work mode', [['', 'Mode: Any'], ['Remote', 'Remote'], ['Hybrid', 'Hybrid'], ['On-site', 'On-site']],
-        (v) => { state.mode = v; loadFirstPage(); }),
-      makeSelect('Experience', [['', 'Exp: Any'], ['0-2', '0–2 yrs'], ['3-5', '3–5 yrs'], ['6+', '6+ yrs']],
-        (v) => { state.exp = v; loadFirstPage(); }),
-      makeSelect('City', [['', 'City: Any'], ['bengaluru', 'Bengaluru'], ['mumbai', 'Mumbai'], ['hyderabad', 'Hyderabad'], ['pune', 'Pune'], ['chennai', 'Chennai'], ['delhi', 'Delhi NCR']],
-        (v) => { state.city = v; loadFirstPage(); }),
-    );
+    if (state.tab === 'jobs') {
+      toolsEl.append(
+        makeSelect('Work mode', [['', 'Mode: Any'], ['Remote', 'Remote'], ['Hybrid', 'Hybrid'], ['On-site', 'On-site']],
+          (v) => { state.mode = v; loadFirstPage(); }),
+        makeSelect('Experience', [['', 'Exp: Any'], ['0-2', '0–2 yrs'], ['3-5', '3–5 yrs'], ['6+', '6+ yrs']],
+          (v) => { state.exp = v; loadFirstPage(); }),
+        makeSelect('City', [['', 'City: Any'], ['bengaluru', 'Bengaluru'], ['mumbai', 'Mumbai'], ['hyderabad', 'Hyderabad'], ['pune', 'Pune'], ['chennai', 'Chennai'], ['delhi', 'Delhi NCR']],
+          (v) => { state.city = v; loadFirstPage(); }),
+      );
+    } else if (state.tab === 'courses') {
+      toolsEl.append(
+        makeSelect('Price', [['', 'Price: Any'], ['free', 'Free'], ['paid', 'Paid']],
+          (v) => { state.free = v; loadFirstPage(); }),
+      );
+    } else if (state.tab === 'events') {
+      toolsEl.append(
+        makeSelect('Mode', [['', 'Mode: Any'], ['online', 'Online'], ['offline', 'In-person']],
+          (v) => { state.mode = v; loadFirstPage(); }),
+      );
+    }
   }
 
-  // Field chips on the Jobs page (Latest / AI & ML / Data / …).
-  function renderJobChips() {
-    chipsEl.hidden = state.tab !== 'jobs';
+  // Chips row: jobs get field chips; courses/events/hackathons get topic chips.
+  function renderChipsRow() {
     chipsEl.textContent = '';
-    if (state.tab !== 'jobs') return;
-    for (const { key, label } of JOB_FIELDS) {
-      const chip = el('button', 'filter-chip', label);
+    chipsEl.hidden = false;
+    if (state.tab === 'jobs') {
+      for (const { key, label } of JOB_FIELDS) {
+        const chip = el('button', 'filter-chip', label);
+        chip.type = 'button';
+        chip.setAttribute('aria-pressed', key === state.jobField ? 'true' : 'false');
+        if (key === state.jobField) chip.classList.add('active');
+        chip.addEventListener('click', () => {
+          if (state.jobField === key) return;
+          state.jobField = key;
+          history.replaceState(null, '', key === 'latest' ? '?kind=jobs' : `?kind=jobs&type=${key}`);
+          renderChipsRow();
+          loadFirstPage();
+        });
+        chipsEl.append(chip);
+      }
+      return;
+    }
+    for (const name of ['all', ...CATEGORIES]) {
+      const chip = el('button', 'filter-chip', name === 'all' ? 'All' : name);
       chip.type = 'button';
-      chip.setAttribute('aria-pressed', key === state.jobField ? 'true' : 'false');
-      if (key === state.jobField) chip.classList.add('active');
+      chip.setAttribute('aria-pressed', name === state.category ? 'true' : 'false');
+      if (name === state.category) chip.classList.add('active');
       chip.addEventListener('click', () => {
-        if (state.jobField === key) return;
-        state.jobField = key;
-        history.replaceState(null, '', key === 'latest' ? '?kind=jobs' : `?kind=jobs&type=${key}`);
-        renderJobChips();
+        if (state.category === name) return;
+        state.category = name;
+        renderChipsRow();
         loadFirstPage();
       });
       chipsEl.append(chip);
@@ -404,7 +452,7 @@
     document.title = `${label} — AI & Tech News`;
     syncNav();
     renderTools();
-    renderJobChips();
+    renderChipsRow();
     loadFirstPage();
   }
   boot();

@@ -143,4 +143,31 @@ const as = normalizeAshby({ title: 'Platform Engineer', jobUrl: 'https://jobs.as
 assert.strictEqual(as.meta.salary, '₹30L – ₹45L');
 assert.strictEqual(as.meta.location, 'Bengaluru, Mumbai');
 
+// Topic classification
+const { classifyTopic, normalizeMsLearn, normalizeCoursera, normalizeConfsTech } = require('../src/lib/resource-normalize');
+assert.strictEqual(classifyTopic('Build RAG applications'), 'RAG');
+assert.strictEqual(classifyTopic('Intro to Large Language Models'), 'LLMs');
+assert.strictEqual(classifyTopic('Deep Learning with PyTorch'), 'Deep Learning');
+assert.strictEqual(classifyTopic('SQL for Beginners'), 'SQL');
+assert.strictEqual(classifyTopic('Watercolor Painting'), '');
+
+// MS Learn: free, image, popularity, duration
+const msl = normalizeMsLearn({ title: 'Get started with AI agents', url: 'https://learn.microsoft.com/x', social_image_url: 'https://learn.microsoft.com/img.png', levels: ['beginner'], products: ['azure'], popularity: 0.9, duration_in_minutes: 125, last_modified: '2026-07-01' });
+assert.strictEqual(msl.meta.free, true);
+assert.strictEqual(msl.meta.category, 'AI Agents');
+assert.strictEqual(msl.meta.duration, '2h');
+
+// Coursera: off-topic dropped, tech kept with link from slug
+assert.strictEqual(normalizeCoursera({ name: 'Guitar for Beginners', slug: 'guitar' }), null);
+const cou = normalizeCoursera({ name: 'Machine Learning Specialization', slug: 'ml-spec', photoUrl: 'https://c.org/p.png' });
+assert.strictEqual(cou.link, 'https://www.coursera.org/learn/ml-spec');
+assert.strictEqual(cou.meta.category, 'Machine Learning');
+
+// confs.tech: past dropped, future kept with mode/city
+assert.strictEqual(normalizeConfsTech({ name: 'Old AI Conf', url: 'https://x.com/c', startDate: '2020-01-01', endDate: '2020-01-02' }), null);
+const conf = normalizeConfsTech({ name: 'PyData Global', url: 'https://x.com/pd', startDate: '2099-06-01', city: 'Bengaluru', country: 'India', online: false });
+assert.strictEqual(conf.meta.mode, 'in-person');
+assert.strictEqual(conf.meta.city, 'Bengaluru, India');
+assert.strictEqual(conf.meta.type, 'conference');
+
 console.log('resource-normalize.test OK');

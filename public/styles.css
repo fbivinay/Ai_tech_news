@@ -866,6 +866,9 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 
 .res-badge.muted { opacity: 0.55; font-weight: 600; }
 
+.res-media { height: 130px; overflow: hidden; border-radius: 10px 10px 0 0; background: var(--chip-bg); }
+.res-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 .job-head { display: flex; align-items: center; gap: 9px; }
 .job-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background: var(--chip-bg); }
 .job-logo-ph { display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: var(--ink-soft); }

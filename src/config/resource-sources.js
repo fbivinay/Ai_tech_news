@@ -50,6 +50,26 @@ const FEED_SOURCES = [
     id: `${ats}-${slug}`, kind: 'job', type: 'ats', ats, slug, company, domain,
   })),
   { id: 'devpost', kind: 'hackathon', type: 'json', url: 'https://devpost.com/api/hackathons', arrayPath: 'hackathons' },
+
+  // Courses — live provider catalogs. Heavy payloads, so refreshed on a TTL
+  // (merge keeps cards between fetches), not every 60s cycle.
+  { id: 'mslearn', kind: 'course', type: 'json', ttlMs: 6 * 3600e3, max: 150, url: 'https://learn.microsoft.com/api/catalog/?type=learningPaths&locale=en-us', arrayPath: 'learningPaths' },
+  ...[0, 100, 200].map((start) => ({
+    id: `coursera-${start}`, kind: 'course', type: 'json', ttlMs: 6 * 3600e3,
+    url: `https://api.coursera.org/api/courses.v1?start=${start}&limit=100&fields=name,photoUrl,slug`,
+    arrayPath: 'elements',
+  })),
+
+  // Conferences — confs.tech community data, current + next year per topic.
+  ...(() => {
+    const year = new Date().getFullYear();
+    const topics = ['data', 'python', 'devops', 'security', 'general'];
+    return [year, year + 1].flatMap((y) => topics.map((topic) => ({
+      id: `confstech-${y}-${topic}`, kind: 'event', type: 'json', ttlMs: 6 * 3600e3,
+      url: `https://raw.githubusercontent.com/tech-conferences/conference-data/main/conferences/${y}/${topic}.json`,
+      arrayPath: null,
+    })));
+  })(),
 ];
 
 // Google Sheet tabs (curated but live-editable). Requires EXPLORE_SHEET_ID.

@@ -11,6 +11,7 @@ const {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby, expFromText, salFromText,
+  normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
 } = require('./lib/resource-normalize');
 const { stripHtml } = require('./lib/text');
 
@@ -60,6 +61,9 @@ async function fetchSheet(tab) {
 
 function normalizeFeedItem(src, raw) {
   if (src.id.startsWith('themuse')) return normalizeMuse(raw);
+  if (src.id.startsWith('coursera')) return normalizeCoursera(raw);
+  if (src.id.startsWith('confstech')) return normalizeConfsTech(raw);
+  if (src.id === 'mslearn') return normalizeMsLearn(raw);
   switch (src.id) {
     case 'remoteok': return normalizeRemoteOK(raw);
     case 'wwr': return normalizeWWR(raw);
@@ -102,7 +106,15 @@ async function fetchFeedSource(src) {
   if (!Array.isArray(arr)) arr = [];
   // RemoteOK's first array element is a legal notice, not a job.
   if (src.id === 'remoteok') arr = arr.filter((x) => x && x.position);
-  return arr.map((raw) => normalizeFeedItem(src, raw));
+  let records = arr.map((raw) => normalizeFeedItem(src, raw));
+  // Per-source cap (most popular first) so one huge catalog can't crowd
+  // every other provider out of the kind's overall cap.
+  if (src.max) {
+    records = records.filter(Boolean)
+      .sort((a, b) => ((b.meta && b.meta.popularity) || 0) - ((a.meta && a.meta.popularity) || 0))
+      .slice(0, src.max);
+  }
+  return records;
 }
 
 function sortKind(kind, items) {
@@ -112,7 +124,14 @@ function sortKind(kind, items) {
   if (kind === 'event') {
     return items.sort((a, b) => new Date(a.date || '2999') - new Date(b.date || '2999'));
   }
-  return items; // hackathon / course: keep source order
+  if (kind === 'course') {
+    // Most popular first (MS Learn ships a real popularity score),
+    // newest-seen breaks ties.
+    return items.sort((a, b) =>
+      ((b.meta && b.meta.popularity) || 0) - ((a.meta && a.meta.popularity) || 0)
+      || new Date((b.meta && b.meta.firstSeen) || 0) - new Date((a.meta && a.meta.firstSeen) || 0));
+  }
+  return items; // hackathon: keep source order
 }
 
 // Pure: merge this round's `incoming` records with `previous` (merge-not-
@@ -152,7 +171,15 @@ function mergeKind(kind, incoming, previous) {
     // Field tag for the chips filter; also backfills snapshot-hydrated records.
     for (const r of result) { if (!r.meta.field) r.meta.field = classifyJobField(r.title); }
   }
-  return sortKind(kind, result).slice(0, kind === 'job' ? 300 : MAX_PER_KIND);
+  // Topic tag + first-seen stamp for courses/events/hackathons.
+  if (kind === 'course' || kind === 'event' || kind === 'hackathon') {
+    for (const r of result) {
+      if (!r.meta.category) r.meta.category = classifyTopic(r.title) || 'Tech';
+      if (!r.meta.firstSeen) r.meta.firstSeen = new Date().toISOString();
+    }
+  }
+  const cap = kind === 'job' ? 300 : kind === 'course' ? 250 : MAX_PER_KIND;
+  return sortKind(kind, result).slice(0, cap);
 }
 
 let refreshPromise = null;
@@ -167,9 +194,17 @@ function refresh() {
 async function doRefresh() {
   const next = emptyByKind();
 
-  const feedResults = await Promise.allSettled(FEED_SOURCES.map((src) => fetchFeedSource(src)));
+  // TTL sources (heavy catalogs) are only refetched once their window
+  // lapses; merge-not-replace keeps their cards in between.
+  const due = FEED_SOURCES.filter((src) => {
+    if (!src.ttlMs) return true;
+    const s = state.sourceStatus[src.id];
+    return !(s && s.ok && Date.now() - new Date(s.at).getTime() < src.ttlMs);
+  });
+
+  const feedResults = await Promise.allSettled(due.map((src) => fetchFeedSource(src)));
   feedResults.forEach((result, i) => {
-    const src = FEED_SOURCES[i];
+    const src = due[i];
     if (result.status === 'fulfilled') {
       let records = result.value.filter(Boolean);
       if (src.kind === 'job') records = records.filter(isIndiaEligibleJob);
@@ -241,11 +276,19 @@ const CITY_PATTERNS = {
   delhi: /delhi|gurgaon|gurugram|noida/i,
 };
 
-function getResources({ kind, page = 1, limit = 24, type = null, q = null, mode = null, city = null, exp = null } = {}) {
+function getResources({ kind, page = 1, limit = 24, type = null, q = null, mode = null, city = null, exp = null, category = null, free = null } = {}) {
   let items = state.byKind[kind] || [];
   if (type && type !== 'all') {
     if (kind === 'event') items = items.filter((r) => r.meta.type === type);
     if (kind === 'job') items = items.filter((r) => r.meta.field === type);
+  }
+  if (category && category !== 'all') {
+    items = items.filter((r) => (r.meta.category || '') === category);
+  }
+  if (free === 'free') items = items.filter((r) => r.meta.free === true);
+  if (free === 'paid') items = items.filter((r) => r.meta.free !== true);
+  if (kind === 'event' && mode) {
+    items = items.filter((r) => (r.meta.mode || '') === (mode === 'online' ? 'online' : 'in-person'));
   }
   if (q) {
     const needle = String(q).toLowerCase();

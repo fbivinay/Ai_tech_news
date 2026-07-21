@@ -182,6 +182,38 @@ function isIndiaEligibleJob(record) {
 // Career boards list every department — keep only AI/tech roles.
 const TECH_TITLE_RE = /engineer|developer|data|machine.?learning|\bml\b|\bai\b|scientist|analyst|devops|sre|architect|security|product|design|qa\b|sdet|platform|cloud|backend|frontend|full.?stack|mobile|android|ios\b|research|software|technical|technolog|infra/i;
 
+// AI/tech topic for courses, events, hackathons — first match wins.
+// Returns '' when nothing tech-related matches (used to drop off-topic
+// records from general catalogs like Coursera's).
+function classifyTopic(text) {
+  const t = String(text || '');
+  const rules = [
+    ['MCP', /\bmcp\b|model context protocol/i],
+    ['RAG', /\brag\b|retrieval.?augmented/i],
+    ['AI Agents', /agent(?:ic|s)?\b/i],
+    ['Prompt Engineering', /prompt/i],
+    ['LLMs', /\bllms?\b|large language|gpt|claude|gemini|llama|transformer/i],
+    ['Generative AI', /gen(?:erative)?.?ai|diffusion|text.?to.?image/i],
+    ['Computer Vision', /computer vision|image recognition|opencv|object detection/i],
+    ['NLP', /\bnlp\b|natural language|text mining|speech/i],
+    ['Deep Learning', /deep learning|neural network|pytorch|tensorflow|keras/i],
+    ['MLOps', /mlops|model deployment|model serving/i],
+    ['Machine Learning', /machine.?learning|\bml\b|scikit|xgboost|supervised|classification model/i],
+    ['Data Science', /data scien|analytics|data analy|statistics|pandas|\bbi\b|power bi|tableau|data engineer|big data|spark|kafka/i],
+    ['SQL', /\bsql\b|database|postgres|mysql/i],
+    ['Python', /python|django|flask/i],
+    ['Cybersecurity', /security|cyber|hacking|pentest|cryptograph/i],
+    ['Cloud', /cloud|aws|azure|gcp|kubernetes|docker|serverless/i],
+    ['DevOps', /devops|\bsre\b|ci\/cd|terraform|ansible/i],
+    ['AI', /\bai\b|artificial intelligence|intelligent/i],
+    ['Robotics', /robot/i],
+    ['Web Dev', /javascript|typescript|react|node|web dev|frontend|backend|full.?stack|html|css/i],
+    ['Tech', /software|programming|coding|computer|developer|engineering|linux|git|api\b|data\b/i],
+  ];
+  for (const [label, re] of rules) if (re.test(t)) return label;
+  return '';
+}
+
 // Job field from the title — first match wins, engineering is the catch-all.
 function classifyJobField(title) {
   const t = String(title || '');
@@ -306,6 +338,67 @@ function normalizeMuse(j) {
   });
 }
 
+// Microsoft Learn catalog — keyless, free, has images + a real popularity
+// score. Everything on it is tech; category still computed for the chips.
+function normalizeMsLearn(j) {
+  if (!j || !j.title || !j.url) return null;
+  return makeRecord({
+    kind: 'course',
+    title: j.title,
+    link: j.url,
+    source: 'Microsoft Learn',
+    image: j.social_image_url || j.icon_url || null,
+    date: j.last_modified || null,
+    meta: {
+      provider: 'Microsoft Learn',
+      level: (j.levels && j.levels[0]) || '',
+      cert: false,
+      free: true,
+      category: classifyTopic(`${j.title} ${(j.products || []).join(' ')} ${(j.subjects || []).join(' ')}`) || 'Tech',
+      popularity: j.popularity || 0,
+      duration: j.duration_in_minutes ? `${Math.round(j.duration_in_minutes / 60)}h` : '',
+    },
+  });
+}
+
+// Coursera public catalog — unfiltered general catalog, so records that
+// don't classify as an AI/tech topic are dropped.
+function normalizeCoursera(j) {
+  if (!j || !j.name || !j.slug) return null;
+  const category = classifyTopic(j.name);
+  if (!category) return null;
+  return makeRecord({
+    kind: 'course',
+    title: j.name,
+    link: `https://www.coursera.org/learn/${j.slug}`,
+    source: 'Coursera',
+    image: j.photoUrl || null,
+    date: null,
+    meta: { provider: 'Coursera', level: '', cert: true, free: false, category, popularity: 0, duration: '' },
+  });
+}
+
+// confs.tech community conference data (per-topic JSON, live repo).
+function normalizeConfsTech(c) {
+  if (!c || !c.name || !c.url) return null;
+  const past = c.endDate || c.startDate;
+  if (past && new Date(past) < new Date(new Date().toDateString())) return null;
+  return makeRecord({
+    kind: 'event',
+    title: c.name,
+    link: c.url,
+    source: 'confs.tech',
+    date: c.startDate || null,
+    meta: {
+      type: 'conference',
+      mode: c.online ? 'online' : 'in-person',
+      city: [c.city, c.country].filter(Boolean).join(', '),
+      free: false,
+      category: classifyTopic(c.name) || 'Tech',
+    },
+  });
+}
+
 function normalizeDevpost(h) {
   if (!h || h.open_state === 'ended') return null;
   let image = h.thumbnail_url || null;
@@ -379,5 +472,6 @@ module.exports = {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, salFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
+  normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
   normalizeDevpost, normalizeSheetRow,
 };
