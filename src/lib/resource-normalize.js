@@ -182,6 +182,17 @@ function isIndiaEligibleJob(record) {
 // Career boards list every department — keep only AI/tech roles.
 const TECH_TITLE_RE = /engineer|developer|data|machine.?learning|\bml\b|\bai\b|scientist|analyst|devops|sre|architect|security|product|design|qa\b|sdet|platform|cloud|backend|frontend|full.?stack|mobile|android|ios\b|research|software|technical|technolog|infra/i;
 
+// Job field from the title — first match wins, engineering is the catch-all.
+function classifyJobField(title) {
+  const t = String(title || '');
+  if (/machine.?learning|\bml\b|\bai\b|deep.?learning|\bllm\b|gen.?ai|\bnlp\b|computer.?vision|prompt.?engineer|research.?(scientist|engineer)|robotics/i.test(t)) return 'ai';
+  if (/\bdata\b|analytics|analyst|\betl\b|\bbi\b|database|warehouse/i.test(t)) return 'data';
+  if (/security|appsec|infosec|offensive|threat/i.test(t)) return 'security';
+  if (/product|design|\bux\b|\bui\b/i.test(t)) return 'product';
+  if (/devops|\bsre\b|reliability|cloud|infra|platform/i.test(t)) return 'devops';
+  return 'engineering';
+}
+
 // "3+ yrs exp" / "2–5 yrs exp" pulled from a description; '' when absent.
 // Only this tiny fact is extracted — the description itself is discarded.
 function expFromText(text) {
@@ -342,7 +353,7 @@ function normalizeSheetRow(row, kind) {
 module.exports = {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
-  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText,
+  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
   normalizeDevpost, normalizeSheetRow,
 };
