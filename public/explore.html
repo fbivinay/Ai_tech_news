@@ -7,8 +7,8 @@
   <meta name="description" content="Explore AI & tech research papers, jobs, events, free courses, and hackathons — always up to date, linking to the source." />
   <link rel="canonical" href="https://ai-tech-news-alpha.vercel.app/explore.html" />
   <link rel="icon" type="image/png" href="logo.png" />
-  <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="preload" href="explore.js?v=13" as="script" />
+  <link rel="stylesheet" href="styles.css?v=15" />
+  <link rel="preload" href="explore.js?v=14" as="script" />
 </head>
 <body>
   <header class="site-header">
@@ -32,11 +32,9 @@
   <main class="wrap">
     <section id="explore" aria-label="Explore resources">
       <div class="explore-head">
-        <h1 class="explore-title">Explore</h1>
-        <p class="explore-sub">Papers, jobs, events, courses &amp; hackathons — always current, straight from the source.</p>
+        <h1 class="explore-title" id="explore-title"></h1>
       </div>
 
-      <div id="explore-tabs" class="explore-tabs" role="tablist" aria-label="Resource types"></div>
       <div id="event-chips" class="event-chips" hidden></div>
 
       <div id="explore-grid" class="feed-grid" aria-live="polite"></div>
@@ -70,6 +68,6 @@
     </div>
   </div>
 
-  <script src="explore.js?v=13"></script>
+  <script src="explore.js?v=14"></script>
 </body>
 </html>
