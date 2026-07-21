@@ -109,6 +109,13 @@ assert.strictEqual(expFromText('We need 3+ years of Python experience'), '3+ yrs
 assert.strictEqual(expFromText('Requires 2-5 years in ML'), '2–5 yrs exp');
 assert.strictEqual(expFromText('401k plan, no exp mentioned'), '');
 
+// Salary from description text — Indian and USD forms; no range = no salary
+const { salFromText } = require('../src/lib/resource-normalize');
+assert.strictEqual(salFromText('CTC: ₹20,00,000 - ₹35,00,000 per annum'), '₹20,00,000–₹35,00,000');
+assert.strictEqual(salFromText('Compensation 12-18 LPA plus ESOPs'), '₹12–18 LPA');
+assert.strictEqual(salFromText('Pay range $120,000 - $160,000'), '$120,000–$160,000');
+assert.strictEqual(salFromText('Great benefits and culture'), '');
+
 // Job field classification — first match wins, engineering catch-all
 const { classifyJobField } = require('../src/lib/resource-normalize');
 assert.strictEqual(classifyJobField('Machine Learning Engineer'), 'ai');

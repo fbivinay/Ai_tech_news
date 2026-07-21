@@ -159,7 +159,7 @@ function normalizeRemotive(j) {
       company: j.company_name || '',
       location: j.candidate_required_location || '',
       mode: 'Remote',
-      salary: stripHtml(j.salary || '').slice(0, 40),
+      salary: stripHtml(j.salary || '').slice(0, 40) || salFromText(j.description || ''),
       type: String(j.job_type || '').replace(/_/g, ' '),
       experience: expFromText(j.description || ''),
     },
@@ -201,6 +201,19 @@ function expFromText(text) {
   return m[2] ? `${m[1]}–${m[2]} yrs exp` : `${m[1]}+ yrs exp`;
 }
 
+// Salary range from description text — Indian (₹/INR/LPA/lakh) and USD forms.
+// Returns '' unless an actual range is stated; never invents figures.
+function salFromText(text) {
+  const t = String(text || '');
+  let m = t.match(/(?:₹|\binr\b|\brs\.?)\s*([\d,]+(?:\.\d+)?)\s*(?:-|–|to)\s*(?:₹|\binr\b|\brs\.?)?\s*([\d,]+(?:\.\d+)?)\s*(lpa|lakhs?|\bl\b|cr)?/i);
+  if (m) return `₹${m[1]}–₹${m[2]}${m[3] ? ` ${m[3].toUpperCase()}` : ''}`;
+  m = t.match(/(\d{1,3}(?:\.\d+)?)\s*(?:-|–|to)\s*(\d{1,3}(?:\.\d+)?)\s*(?:lpa|lakhs?)/i);
+  if (m) return `₹${m[1]}–${m[2]} LPA`;
+  m = t.match(/\$\s*([\d,]{2,7})\s*(k)?\s*(?:-|–|to)\s*\$?\s*([\d,]{2,7})\s*(k)?/);
+  if (m) return `$${m[1]}${m[2] || m[4] ? 'k' : ''}–$${m[3]}${m[2] || m[4] ? 'k' : ''}`;
+  return '';
+}
+
 // Company logo via the same favicon service the news cards already use.
 function faviconLogo(domain) {
   return domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128` : null;
@@ -217,7 +230,18 @@ function normalizeGreenhouse(j, src) {
     source: src.company,
     image: faviconLogo(src.domain),
     date: j.updated_at || j.first_published || null,
-    meta: { company: src.company, location: (j.location && j.location.name) || '', mode: '', salary: '', type: '', experience: '' },
+    meta: {
+      company: src.company,
+      location: (j.location && j.location.name) || '',
+      mode: '',
+      salary: '',
+      type: '',
+      experience: '',
+      // Enrichment pass fetches this job's detail (description text) once
+      // to fill salary/experience — see enrichJobs() in src/resources.js.
+      ghSlug: src.slug,
+      ghId: j.id,
+    },
   });
 }
 
@@ -235,7 +259,7 @@ function normalizeLever(j, src) {
       company: src.company,
       location: (j.categories && j.categories.location) || '',
       mode: wp === 'remote' ? 'Remote' : wp === 'hybrid' ? 'Hybrid' : wp ? 'On-site' : '',
-      salary: j.salaryRange ? fmtSalary(j.salaryRange.min, j.salaryRange.max, j.salaryRange.currency) : '',
+      salary: (j.salaryRange ? fmtSalary(j.salaryRange.min, j.salaryRange.max, j.salaryRange.currency) : '') || salFromText(j.descriptionPlain || ''),
       type: (j.categories && j.categories.commitment) || '',
       experience: expFromText(j.descriptionPlain || ''),
     },
@@ -255,7 +279,7 @@ function normalizeAshby(j, src) {
       company: src.company,
       location: [j.location, ...(j.secondaryLocations || []).map((x) => x.location)].filter(Boolean).join(', '),
       mode: j.isRemote ? 'Remote' : '',
-      salary: (j.compensation && j.compensation.compensationTierSummary) || '',
+      salary: (j.compensation && j.compensation.compensationTierSummary) || salFromText(j.descriptionHtml || ''),
       type: j.employmentType || '',
       experience: expFromText(j.descriptionHtml || ''),
     },
@@ -275,7 +299,7 @@ function normalizeMuse(j) {
       company: (j.company && j.company.name) || '',
       location,
       mode: /remote|flexible/i.test(location) ? 'Remote' : '',
-      salary: '',
+      salary: salFromText(j.contents || ''),
       type: '',
       experience: expFromText(j.contents || ''),
     },
@@ -353,7 +377,7 @@ function normalizeSheetRow(row, kind) {
 module.exports = {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
-  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, classifyJobField,
+  normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, salFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
   normalizeDevpost, normalizeSheetRow,
 };

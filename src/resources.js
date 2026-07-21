@@ -10,8 +10,9 @@ const {
   normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeDevpost, normalizeSheetRow,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
-  normalizeGreenhouse, normalizeLever, normalizeAshby,
+  normalizeGreenhouse, normalizeLever, normalizeAshby, expFromText, salFromText,
 } = require('./lib/resource-normalize');
+const { stripHtml } = require('./lib/text');
 
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
 const JSON_TIMEOUT_MS = 7000;
@@ -123,6 +124,19 @@ function mergeKind(kind, incoming, previous) {
   for (const prev of previous) {
     if (!seen.has(prev.id)) { merged.push(prev); seen.add(prev.id); }
   }
+  // Incoming wins the dedupe, but keep what past enrichment passes already
+  // earned for a job (salary/experience fetched from its detail page).
+  if (kind === 'job') {
+    const prevById = new Map(previous.map((r) => [r.id, r]));
+    for (const r of merged) {
+      const prev = prevById.get(r.id);
+      if (prev && prev !== r && prev.meta && prev.meta.enriched) {
+        if (!r.meta.salary) r.meta.salary = prev.meta.salary || '';
+        if (!r.meta.experience) r.meta.experience = prev.meta.experience || '';
+        r.meta.enriched = true;
+      }
+    }
+  }
   // Re-drop stale events (a previously-future event may now be past).
   let result = merged;
   if (kind === 'event') {
@@ -185,9 +199,36 @@ async function doRefresh() {
     state.byKind[kind] = mergeKind(kind, next[kind], state.byKind[kind]);
   }
 
+  await enrichJobs();
+
   state.lastRefresh = new Date().toISOString();
   const total = KINDS.reduce((n, k) => n + state.byKind[k].length, 0);
   console.log(`[resources] ${total} items across ${KINDS.length} kinds`);
+}
+
+// Greenhouse's list API carries no description, so salary/experience can't
+// be read at list time. Fetch each job's detail page once — capped per
+// refresh, marked so a job is only ever looked up once (same pattern as the
+// news store's og:image lookups). Only the two extracted facts are kept;
+// the description text is discarded.
+const ENRICH_PER_REFRESH = 40;
+
+async function enrichJobs() {
+  const pending = state.byKind.job
+    .filter((r) => r.meta.ghId && !r.meta.enriched)
+    .slice(0, ENRICH_PER_REFRESH);
+  if (pending.length === 0) return;
+  await Promise.allSettled(pending.map(async (r) => {
+    try {
+      const detail = await fetchJson(`https://boards-api.greenhouse.io/v1/boards/${r.meta.ghSlug}/jobs/${r.meta.ghId}`);
+      // Greenhouse ships the description HTML-escaped: decode, then strip.
+      const text = stripHtml(stripHtml((detail && detail.content) || ''));
+      if (!r.meta.experience) r.meta.experience = expFromText(text);
+      if (!r.meta.salary) r.meta.salary = salFromText(text);
+    } finally {
+      r.meta.enriched = true; // one shot, even on fetch failure
+    }
+  }));
 }
 
 function getResources({ kind, page = 1, limit = 24, type = null } = {}) {
