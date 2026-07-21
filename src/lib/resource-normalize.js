@@ -42,6 +42,18 @@ function normalizeArxiv(entry) {
   });
 }
 
+// "$60k–$90k" from raw annual figures; empty string when unknown.
+function fmtSalary(min, max, currency) {
+  if (!min && !max) return '';
+  const sym = { USD: '$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$', INR: '₹' }[currency] || '$';
+  const k = (n) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
+  if (min && max && min !== max) return `${sym}${k(min)}–${sym}${k(max)}`;
+  return `${sym}${k(min || max)}`;
+}
+
+// Job meta contract (all sources): { company, location, mode, salary, type }
+// mode: 'Remote' | 'On-site' | 'Hybrid' | '' — shown as a card badge.
+
 function normalizeRemoteOK(job) {
   if (!job || !job.position) return null;
   return makeRecord({
@@ -49,10 +61,15 @@ function normalizeRemoteOK(job) {
     title: job.position,
     link: job.url || job.apply_url,
     source: 'RemoteOK',
-    blurb: job.description || (Array.isArray(job.tags) ? job.tags.join(', ') : ''),
     image: job.company_logo || job.logo || null,
     date: job.date || null,
-    meta: { company: job.company || '', location: job.location || 'Remote', remote: true },
+    meta: {
+      company: job.company || '',
+      location: job.location || '',
+      mode: 'Remote',
+      salary: fmtSalary(job.salary_min, job.salary_max, 'USD'),
+      type: '',
+    },
   });
 }
 
@@ -67,9 +84,84 @@ function normalizeWWR(entry) {
     title: role,
     link: entry.link,
     source: 'WeWorkRemotely',
-    blurb: entry.contentSnippet || entry.summary || '',
     date: entry.isoDate || entry.pubDate || null,
-    meta: { company, location: 'Remote', remote: true },
+    meta: { company, location: '', mode: 'Remote', salary: '', type: '' },
+  });
+}
+
+function normalizeArbeitnow(j) {
+  if (!j || !j.title) return null;
+  return makeRecord({
+    kind: 'job',
+    title: j.title,
+    link: j.url,
+    source: 'Arbeitnow',
+    date: j.created_at ? new Date(j.created_at * 1000).toISOString() : null,
+    meta: {
+      company: j.company_name || '',
+      location: j.location || '',
+      mode: j.remote ? 'Remote' : 'On-site',
+      salary: '',
+      type: Array.isArray(j.job_types) && j.job_types[0] ? j.job_types[0] : '',
+    },
+  });
+}
+
+function normalizeJobicy(j) {
+  if (!j || !j.jobTitle) return null;
+  return makeRecord({
+    kind: 'job',
+    title: j.jobTitle,
+    link: j.url,
+    source: 'Jobicy',
+    image: j.companyLogo || null,
+    date: j.pubDate ? new Date(String(j.pubDate).replace(' ', 'T')).toISOString() : null,
+    meta: {
+      company: j.companyName || '',
+      location: j.jobGeo || '',
+      mode: 'Remote',
+      salary: fmtSalary(j.annualSalaryMin, j.annualSalaryMax, j.salaryCurrency),
+      type: Array.isArray(j.jobType) ? (j.jobType[0] || '') : (j.jobType || ''),
+    },
+  });
+}
+
+function normalizeHimalayas(j) {
+  if (!j || !j.title) return null;
+  const ts = j.pubDate ? (j.pubDate > 1e12 ? j.pubDate : j.pubDate * 1000) : null;
+  return makeRecord({
+    kind: 'job',
+    title: j.title,
+    link: j.applicationLink || j.guid,
+    source: 'Himalayas',
+    image: j.companyLogo || null,
+    date: ts ? new Date(ts).toISOString() : null,
+    meta: {
+      company: j.companyName || '',
+      location: (Array.isArray(j.locationRestrictions) ? j.locationRestrictions.slice(0, 2).join(', ') : '') || '',
+      mode: 'Remote',
+      salary: fmtSalary(j.minSalary, j.maxSalary, j.salaryCurrency || 'USD'),
+      type: j.employmentType || '',
+    },
+  });
+}
+
+function normalizeMuse(j) {
+  if (!j || !j.name) return null;
+  const location = (j.locations && j.locations[0] && j.locations[0].name) || '';
+  return makeRecord({
+    kind: 'job',
+    title: j.name,
+    link: j.refs && j.refs.landing_page,
+    source: 'The Muse',
+    date: j.publication_date || null,
+    meta: {
+      company: (j.company && j.company.name) || '',
+      location,
+      mode: /remote|flexible/i.test(location) ? 'Remote' : '',
+      salary: '',
+      type: '',
+    },
   });
 }
 
@@ -143,5 +235,6 @@ function normalizeSheetRow(row, kind) {
 
 module.exports = {
   makeRecord, normalizeArxiv, normalizeRemoteOK, normalizeWWR,
+  normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeDevpost, normalizeSheetRow,
 };
