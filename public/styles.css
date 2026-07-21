@@ -82,21 +82,21 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 16px 24px 14px;
+  padding: 8px 24px 6px;
 }
 
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 
 .brand-mark {
   display: block;
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
   filter: drop-shadow(0 3px 8px rgba(20, 20, 20, 0.25));
 }
 
 .brand-text {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -105,19 +105,12 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .brand-text em { font-style: normal; color: var(--red); }
 
 
-.dev-credit { margin: 0; padding: 0 24px 10px; color: var(--ink-faint); font-size: 13px; text-align: center; }
-.dev-name { color: var(--red); font-weight: 800; }
-
-@media (max-width: 480px) {
-  .dev-credit { padding: 0 16px 10px; font-size: 12px; }
-}
-
 /* Sticky section navigation: jump straight to Trending / AI Models / Tech… */
 .section-nav {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 2px 24px 12px;
+  padding: 2px 24px 8px;
   scrollbar-width: none;
 }
 .section-nav::-webkit-scrollbar { display: none; }
@@ -140,7 +133,7 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .section-chip.active { background: var(--red); border-color: var(--red); color: #fff; }
 
 /* Anchored sections stop below the sticky header when jumped to */
-.billboard, .rail, #latest { scroll-margin-top: 118px; }
+.billboard, .rail, #latest { scroll-margin-top: 92px; }
 
 .theme-toggle {
   border: 1px solid var(--rule);
