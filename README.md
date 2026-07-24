@@ -1,4 +1,4 @@
-# ⚡ AI & Tech News
+# ⚡ Update Bro!
 
 > The fastest way to stay updated on AI and technology. Read concise AI-generated summaries and go directly to the original source for the full story.
 

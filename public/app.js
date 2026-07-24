@@ -1,4 +1,4 @@
-/* AI & Tech News frontend — Netflix-style homepage.
+/* Update Bro! frontend — Netflix-style homepage.
    Billboard hero + horizontal rails + "Latest" grid with Load More button.
    Fast by design: one /api/home request per load, skeleton screens, instant
    repaint from localStorage on repeat visits, 60-second live polling with a
