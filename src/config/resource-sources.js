@@ -28,7 +28,10 @@ const FEED_SOURCES = [
 
   // Company career boards via public ATS APIs (Greenhouse/Lever/Ashby) —
   // keyless JSON, straight from the employer, India-filtered downstream.
-  // Probed live 2026-07-21; boards that stop responding are tolerated.
+  // Probed live 2026-07-21/24; boards that stop responding are tolerated.
+  // Each entry below was checked for a non-zero count of India-tagged
+  // postings before being added (a global board with zero India hits is
+  // pure fetch cost for no cards).
   ...[
     ['greenhouse', 'phonepe', 'PhonePe', 'phonepe.com'],
     ['greenhouse', 'groww', 'Groww', 'groww.in'],
@@ -43,9 +46,18 @@ const FEED_SOURCES = [
     ['greenhouse', 'hackerrank', 'HackerRank', 'hackerrank.com'],
     ['greenhouse', 'razorpaysoftwareprivatelimited', 'Razorpay', 'razorpay.com'],
     ['greenhouse', 'datadog', 'Datadog', 'datadoghq.com'],
+    ['greenhouse', 'highradius', 'HighRadius', 'highradius.com'],
+    ['greenhouse', 'okta', 'Okta', 'okta.com'],
+    ['greenhouse', 'gitlab', 'GitLab', 'gitlab.com'],
+    ['greenhouse', 'newrelic', 'New Relic', 'newrelic.com'],
+    ['greenhouse', 'netskope', 'Netskope', 'netskope.com'],
+    ['greenhouse', 'coinbase', 'Coinbase', 'coinbase.com'],
+    ['greenhouse', 'fastly', 'Fastly', 'fastly.com'],
     ['lever', 'meesho', 'Meesho', 'meesho.com'],
     ['lever', 'cred', 'CRED', 'cred.club'],
+    ['lever', 'highspot', 'Highspot', 'highspot.com'],
     ['ashby', 'atlan', 'Atlan', 'atlan.com'],
+    ['ashby', 'openai', 'OpenAI', 'openai.com'],
   ].map(([ats, slug, company, domain]) => ({
     id: `${ats}-${slug}`, kind: 'job', type: 'ats', ats, slug, company, domain,
   })),

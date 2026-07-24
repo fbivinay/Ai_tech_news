@@ -238,7 +238,10 @@ async function doRefresh() {
     state.byKind[kind] = mergeKind(kind, next[kind], state.byKind[kind]);
   }
 
-  await enrichJobs();
+  // Fire-and-forget: salary/experience enrichment is a nice-to-have (cards
+  // already show "not disclosed" gracefully) — don't make every refresh,
+  // including the one a cold request blocks on, pay its extra ~7s.
+  enrichJobs().catch((err) => console.error('[resources] enrich failed:', err.message));
 
   state.lastRefresh = new Date().toISOString();
   const total = KINDS.reduce((n, k) => n + state.byKind[k].length, 0);
