@@ -1,4 +1,4 @@
-// AI & Tech News — aggregation platform server.
+// Update Bro! — aggregation platform server.
 // Serves the static frontend and a small JSON API over the in-memory store.
 
 const path = require('path');
@@ -89,7 +89,7 @@ app.get('/api/status', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`AI & Tech News running on http://localhost:${PORT}`);
+  console.log(`Update Bro! running on http://localhost:${PORT}`);
   store.start();
   resources.start();
 });

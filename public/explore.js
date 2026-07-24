@@ -1,4 +1,4 @@
-/* AI & Tech News — resource section pages (jobs, courses, hackathons,
+/* Update Bro! — resource section pages (jobs, courses, hackathons,
    events/workshops/conferences) over /api/explore. Which section renders is
    decided by the URL (?kind=…&type=…); the header nav is the only switcher.
    Self-contained: repeats a few small helpers from app.js on purpose so the
@@ -449,7 +449,7 @@
       ? EVENT_TYPE_LABELS[state.eventType]
       : KINDS.find((k) => k.key === state.tab).label;
     titleEl.textContent = label;
-    document.title = `${label} — AI & Tech News`;
+    document.title = `${label} — Update Bro!`;
     syncNav();
     renderTools();
     renderChipsRow();

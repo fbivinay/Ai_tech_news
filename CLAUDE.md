@@ -1,4 +1,4 @@
-# AI & Tech News — project guide
+# Update Bro! — project guide
 
 A **news discovery & aggregation platform** (Google News style, Netflix-inspired UI) for AI & technology. Core legal/product rule: **never store, republish, or display full article bodies** — only headline + short AI summary + attribution, always linking to the original publisher.
 
