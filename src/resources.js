@@ -7,11 +7,12 @@
 const { FEED_SOURCES, SHEET_TABS, KINDS, TAB_TO_KIND } = require('./config/resource-sources');
 const { fetchFeed } = require('./lib/feed');
 const {
-  normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeDevpost, normalizeSheetRow,
+  normalizeArxiv, normalizeRemoteOK, normalizeWWR, normalizeSheetRow,
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby, expFromText, salFromText,
   normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
+  normalizeUnstopHackathon, normalizeUnstopWorkshop,
 } = require('./lib/resource-normalize');
 const { stripHtml } = require('./lib/text');
 
@@ -71,7 +72,8 @@ function normalizeFeedItem(src, raw) {
     case 'jobicy': return normalizeJobicy(raw);
     case 'himalayas': return normalizeHimalayas(raw);
     case 'remotive': return normalizeRemotive(raw);
-    case 'devpost': return normalizeDevpost(raw);
+    case 'unstop-hackathons': return normalizeUnstopHackathon(raw);
+    case 'unstop-workshops': return normalizeUnstopWorkshop(raw);
     default: return src.kind === 'paper' ? normalizeArxiv(raw) : null;
   }
 }
@@ -102,7 +104,9 @@ async function fetchFeedSource(src) {
   }
   // json
   const data = await fetchJson(src.url);
-  let arr = src.arrayPath ? data[src.arrayPath] : data;
+  let arr = src.arrayPath
+    ? src.arrayPath.split('.').reduce((o, k) => (o == null ? o : o[k]), data)
+    : data;
   if (!Array.isArray(arr)) arr = [];
   // RemoteOK's first array element is a legal notice, not a job.
   if (src.id === 'remoteok') arr = arr.filter((x) => x && x.position);

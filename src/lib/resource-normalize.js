@@ -383,6 +383,7 @@ function normalizeConfsTech(c) {
   if (!c || !c.name || !c.url) return null;
   const past = c.endDate || c.startDate;
   if (past && new Date(past) < new Date(new Date().toDateString())) return null;
+  if (!INDIA_RE.test(`${c.city || ''} ${c.country || ''}`)) return null;
   return makeRecord({
     kind: 'event',
     title: c.name,
@@ -399,25 +400,68 @@ function normalizeConfsTech(c) {
   });
 }
 
-function normalizeDevpost(h) {
-  if (!h || h.open_state === 'ended') return null;
-  let image = h.thumbnail_url || null;
-  if (image && image.startsWith('//')) image = `https:${image}`;
-  const prize = h.prize_amount ? stripHtml(h.prize_amount) : '';
-  const location = h.displayed_location && h.displayed_location.location;
-  const blurb = [location, prize && `${prize} in prizes`].filter(Boolean).join(' · ');
+// Unstop (unstop.com) — India's hackathon/workshop platform, public JSON API.
+// A record qualifies as India-eligible when it names an Indian address, or
+// carries no country at all (Unstop's online listings drop location data
+// but the platform itself is India-hosted) — foreign in-person events (a
+// named non-India country) are dropped.
+function unstopIndiaEligible(it) {
+  const country = it.address_with_country_logo
+    && it.address_with_country_logo.country
+    && it.address_with_country_logo.country.name;
+  return !country || country === 'India';
+}
+
+function unstopTopPrize(prizes) {
+  const top = Array.isArray(prizes) ? prizes.find((p) => p.cash) : null;
+  if (!top) return '';
+  const sym = top.currency === 'fa-rupee' ? '₹' : '$';
+  return `${sym}${Number(top.cash).toLocaleString('en-IN')} prize`;
+}
+
+function normalizeUnstopHackathon(it) {
+  if (!it || !it.title || !it.seo_url) return null;
+  if (!unstopIndiaEligible(it)) return null;
+  if (!classifyTopic(it.title)) return null;
+  const city = it.address_with_country_logo && it.address_with_country_logo.city;
+  const prize = unstopTopPrize(it.prizes);
+  const blurb = [it.region === 'online' ? 'Online' : city, prize].filter(Boolean).join(' · ');
   return makeRecord({
     kind: 'hackathon',
-    title: h.title,
-    link: h.url,
-    source: 'Devpost',
+    title: it.title,
+    link: it.seo_url,
+    source: 'Unstop',
     blurb,
-    image,
-    date: null,
+    image: it.logoUrl2 || null,
+    date: it.end_date || null,
     meta: {
-      deadline: h.submission_period_dates || '',
-      mode: h.online ? 'online' : 'in-person',
+      deadline: (it.regnRequirements && it.regnRequirements.remain_days) || '',
+      mode: it.region === 'online' ? 'online' : 'in-person',
       prize,
+    },
+  });
+}
+
+function normalizeUnstopWorkshop(it) {
+  if (!it || !it.title || !it.seo_url) return null;
+  if (!unstopIndiaEligible(it)) return null;
+  const category = classifyTopic(it.title);
+  if (!category) return null;
+  const city = it.address_with_country_logo && it.address_with_country_logo.city;
+  return makeRecord({
+    kind: 'event',
+    title: it.title,
+    link: it.seo_url,
+    source: 'Unstop',
+    blurb: (it.organisation && it.organisation.name) || '',
+    image: it.logoUrl2 || null,
+    date: it.end_date || null,
+    meta: {
+      type: 'workshop',
+      mode: it.region === 'online' ? 'online' : 'in-person',
+      city: city || (it.region === 'online' ? 'Online' : ''),
+      free: it.isPaid === false,
+      category,
     },
   });
 }
@@ -473,5 +517,5 @@ module.exports = {
   normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, salFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
   normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
-  normalizeDevpost, normalizeSheetRow,
+  normalizeUnstopHackathon, normalizeUnstopWorkshop, normalizeSheetRow,
 };
