@@ -385,9 +385,18 @@
     emptyEl.hidden = data.items.length > 0;
   }
 
+  function showSkeletons() {
+    gridEl.textContent = '';
+    for (let i = 0; i < 12; i++) {
+      const c = el('div', 'skeleton-grid-card');
+      c.append(el('div', 'sk sk-thumb'), el('div', 'sk sk-caption'), el('div', 'sk sk-caption short'));
+      gridEl.append(c);
+    }
+  }
+
   async function loadFirstPage() {
     state.page = 1;
-    gridEl.textContent = '';
+    showSkeletons();
     emptyEl.hidden = true;
     moreBtn.hidden = true;
     try {
