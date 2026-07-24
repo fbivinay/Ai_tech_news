@@ -281,7 +281,7 @@ const paper = normalizeArxiv({
   isoDate: '2026-07-01T00:00:00Z',
 });
 assert.strictEqual(paper.kind, 'paper');
-assert.strictEqual(paper.title, 'Deep Nets Are Great.');
+assert.strictEqual(paper.title, 'Deep Nets Are Great'); // arXiv's '. ' before the tag is a separator, not title text
 assert.strictEqual(paper.meta.authors, 'Ada Lovelace, Alan Turing');
 
 // RemoteOK: maps position/company/url
