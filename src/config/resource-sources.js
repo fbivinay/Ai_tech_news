@@ -49,7 +49,19 @@ const FEED_SOURCES = [
   ].map(([ats, slug, company, domain]) => ({
     id: `${ats}-${slug}`, kind: 'job', type: 'ats', ats, slug, company, domain,
   })),
-  { id: 'devpost', kind: 'hackathon', type: 'json', url: 'https://devpost.com/api/hackathons', arrayPath: 'hackathons' },
+  // Unstop — India's hackathon/workshop platform. India-filtered + tech-
+  // topic-filtered downstream in resource-normalize.js. TTL'd: listings
+  // don't turn over minute to minute.
+  {
+    id: 'unstop-hackathons', kind: 'hackathon', type: 'json', ttlMs: 2 * 3600e3,
+    url: 'https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&oppstatus=open&page=1&per_page=100',
+    arrayPath: 'data.data',
+  },
+  {
+    id: 'unstop-workshops', kind: 'event', type: 'json', ttlMs: 2 * 3600e3,
+    url: 'https://unstop.com/api/public/opportunity/search-result?opportunity=workshops&oppstatus=open&page=1&per_page=100',
+    arrayPath: 'data.data',
+  },
 
   // Courses — live provider catalogs. Heavy payloads, so refreshed on a TTL
   // (merge keeps cards between fetches), not every 60s cycle.
