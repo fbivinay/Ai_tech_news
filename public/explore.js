@@ -1,6 +1,6 @@
-/* Update Bro! — resource section pages (jobs, courses, hackathons) over
-   /api/explore. Which section renders is decided by the URL (?kind=…&type=…);
-   the header nav is the only switcher.
+/* Update Bro! — resource section pages (jobs, courses, hackathons,
+   events/workshops/conferences) over /api/explore. Which section renders is
+   decided by the URL (?kind=…&type=…); the header nav is the only switcher.
    Self-contained: repeats a few small helpers from app.js on purpose so the
    homepage stays untouched. ponytail: minor helper duplication with app.js;
    extract a common.js only if a third page appears. */
@@ -10,7 +10,11 @@
     { key: 'jobs', label: 'Jobs' },
     { key: 'courses', label: 'Courses' },
     { key: 'hackathons', label: 'Hackathons' },
+    { key: 'events', label: 'Events' },
   ];
+  // Workshops/Conferences are event-type pages of their own; plain Events
+  // shows every type (sessions included).
+  const EVENT_TYPE_LABELS = { workshop: 'Workshops', conference: 'Conferences' };
 
   // Jobs field chips — keys match meta.field set by the backend classifier.
   const JOB_FIELDS = [
@@ -23,11 +27,11 @@
     { key: 'product', label: 'Product & Design' },
   ];
 
-  // Topic chips for courses / hackathons (server tags meta.category).
+  // Topic chips for courses / events / hackathons (server tags meta.category).
   const CATEGORIES = ['Generative AI', 'LLMs', 'AI Agents', 'Prompt Engineering', 'RAG', 'Machine Learning', 'Deep Learning', 'NLP', 'Computer Vision', 'MLOps', 'Data Science', 'Python', 'SQL', 'Cloud', 'Cybersecurity', 'DevOps'];
 
   const state = {
-    tab: 'jobs', jobField: 'latest',
+    tab: 'jobs', eventType: 'all', jobField: 'latest',
     q: '', mode: '', city: '', exp: '', category: 'all', free: '',
     page: 1, hasMore: false, loading: false, sig: null,
   };
@@ -189,6 +193,14 @@
     const out = [];
     const m = item.meta || {};
     if (item.kind === 'paper' && m.authors) out.push({ text: m.authors });
+    if (item.kind === 'event') {
+      if (m.type) out.push({ text: m.type.charAt(0).toUpperCase() + m.type.slice(1) });
+      if (m.category) out.push({ text: m.category });
+      if (item.date) out.push({ text: new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
+      if (m.city) out.push({ text: m.city });
+      if (m.mode) out.push({ text: m.mode === 'in-person' ? 'In-person' : 'Online' });
+      if (m.free) out.push({ text: 'Free', free: true });
+    }
     if (item.kind === 'course') {
       if (m.category) out.push({ text: m.category });
       if (m.level) out.push({ text: m.level });
@@ -246,6 +258,7 @@
 
   function tabParams(page) {
     const params = new URLSearchParams({ kind: state.tab, page, limit: 24 });
+    if (state.tab === 'events' && state.eventType !== 'all') params.set('type', state.eventType);
     if (state.tab === 'jobs' && state.jobField !== 'latest') params.set('type', state.jobField);
     if (state.q) params.set('q', state.q);
     if (state.tab === 'jobs') {
@@ -255,6 +268,7 @@
     } else {
       if (state.category !== 'all') params.set('category', state.category);
       if (state.free) params.set('free', state.free);
+      if (state.tab === 'events' && state.mode) params.set('mode', state.mode);
     }
     return params;
   }
@@ -304,10 +318,15 @@
         makeSelect('Price', [['', 'Price: Any'], ['free', 'Free'], ['paid', 'Paid']],
           (v) => { state.free = v; loadFirstPage(); }),
       );
+    } else if (state.tab === 'events') {
+      toolsEl.append(
+        makeSelect('Mode', [['', 'Mode: Any'], ['online', 'Online'], ['offline', 'In-person']],
+          (v) => { state.mode = v; loadFirstPage(); }),
+      );
     }
   }
 
-  // Chips row: jobs get field chips; courses/hackathons get topic chips.
+  // Chips row: jobs get field chips; courses/events/hackathons get topic chips.
   function renderChipsRow() {
     chipsEl.textContent = '';
     chipsEl.hidden = false;
@@ -343,10 +362,11 @@
     }
   }
 
-  // Highlight the nav link matching this page.
+  // Highlight the nav link matching this page (kind + event type).
   function syncNav() {
+    const type = state.eventType === 'all' ? '' : state.eventType;
     document.querySelectorAll('.top-nav a[data-kind]').forEach((a) => {
-      const active = a.dataset.kind === state.tab;
+      const active = a.dataset.kind === state.tab && (a.dataset.type || '') === type;
       a.classList.toggle('active', active);
       if (active) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
@@ -431,9 +451,12 @@
     const wanted = query.get('kind');
     if (KINDS.some((k) => k.key === wanted)) state.tab = wanted;
     const type = query.get('type');
+    if (state.tab === 'events' && EVENT_TYPE_LABELS[type]) state.eventType = type;
     if (state.tab === 'jobs' && JOB_FIELDS.some((f) => f.key === type)) state.jobField = type;
 
-    const label = KINDS.find((k) => k.key === state.tab).label;
+    const label = state.eventType !== 'all'
+      ? EVENT_TYPE_LABELS[state.eventType]
+      : KINDS.find((k) => k.key === state.tab).label;
     titleEl.textContent = label;
     document.title = `${label} — Update Bro!`;
     syncNav();
