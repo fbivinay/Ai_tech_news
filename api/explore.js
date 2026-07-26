@@ -2,7 +2,7 @@
 //   ?snapshot=1            → full store dump (cold instances hydrate from this)
 //   (no kind)              → { counts, lastRefresh } for the tab bar
 //   ?kind=papers&page=1    → paginated cards for a kind
-//   ?kind=events&type=...  → events filtered by chip
+//   ?kind=hackathons&type=...  → resources filtered by chip
 const resources = require('../src/resources');
 const { TAB_TO_KIND } = require('../src/config/resource-sources');
 const { waitUntil, cacheHeaders, warmingResponse } = require('./_shared');

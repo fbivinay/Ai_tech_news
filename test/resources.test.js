@@ -6,10 +6,6 @@ const resources = require('../src/resources');
 resources.state.byKind = {
   paper: Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, kind: 'paper', title: `P${i}`, meta: {} })),
   job: [], hackathon: [], course: [],
-  event: [
-    { id: 'e1', kind: 'event', title: 'Conf', meta: { type: 'conference' } },
-    { id: 'e2', kind: 'event', title: 'Shop', meta: { type: 'workshop' } },
-  ],
 };
 resources.state.lastRefresh = new Date().toISOString();
 
@@ -21,11 +17,6 @@ assert.strictEqual(page1.total, 30);
 const page2 = resources.getResources({ kind: 'paper', page: 2, limit: 24 });
 assert.strictEqual(page2.items.length, 6);
 assert.strictEqual(page2.hasMore, false);
-
-// event type filter
-const workshops = resources.getResources({ kind: 'event', type: 'workshop' });
-assert.strictEqual(workshops.items.length, 1);
-assert.strictEqual(workshops.items[0].id, 'e2');
 
 // job field filter
 resources.state.byKind.job = [
@@ -60,12 +51,11 @@ assert.strictEqual(taggedJobs[0].meta.field, 'data');
 // counts use plural tab names
 const counts = resources.getCounts();
 assert.strictEqual(counts.papers, 30);
-assert.strictEqual(counts.events, 2);
 assert.strictEqual(counts.jobs, 0);
 
 // snapshot round-trips
 const snap = resources.getSnapshot();
-resources.state.byKind = { paper: [], job: [], event: [], course: [], hackathon: [] };
+resources.state.byKind = { paper: [], job: [], course: [], hackathon: [] };
 assert.strictEqual(resources.loadSnapshot(snap), true);
 assert.strictEqual(resources.getCounts().papers, 30);
 
@@ -88,22 +78,5 @@ const deduped = resources.mergeKind('paper', [
 ]);
 assert.strictEqual(deduped.length, 1);
 assert.strictEqual(deduped[0].title, 'A (new)');
-
-// STALE EVENT REDROP: a previously-future event that's now past gets dropped
-// on re-merge; a still-future event survives.
-const events = resources.mergeKind('event', [], [
-  {
-    id: 'e1', kind: 'event', title: 'Old', link: 'https://x.com/e1', date: '2000-01-01', meta: { type: 'conference' },
-  },
-]);
-assert.strictEqual(events.length, 0);
-
-const futureEvents = resources.mergeKind('event', [], [
-  {
-    id: 'e2', kind: 'event', title: 'New', link: 'https://x.com/e2', date: '2099-01-01', meta: { type: 'conference' },
-  },
-]);
-assert.strictEqual(futureEvents.length, 1);
-assert.strictEqual(futureEvents[0].id, 'e2');
 
 console.log('resources.test OK');
