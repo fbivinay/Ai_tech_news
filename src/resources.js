@@ -11,8 +11,8 @@ const {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby, expFromText, salFromText,
-  normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
-  normalizeUnstopHackathon, normalizeUnstopWorkshop,
+  normalizeMsLearn, normalizeCoursera, classifyTopic,
+  normalizeUnstopHackathon,
 } = require('./lib/resource-normalize');
 const { stripHtml } = require('./lib/text');
 
@@ -63,7 +63,6 @@ async function fetchSheet(tab) {
 function normalizeFeedItem(src, raw) {
   if (src.id.startsWith('themuse')) return normalizeMuse(raw);
   if (src.id.startsWith('coursera')) return normalizeCoursera(raw);
-  if (src.id.startsWith('confstech')) return normalizeConfsTech(raw);
   if (src.id === 'mslearn') return normalizeMsLearn(raw);
   switch (src.id) {
     case 'remoteok': return normalizeRemoteOK(raw);
@@ -73,7 +72,6 @@ function normalizeFeedItem(src, raw) {
     case 'himalayas': return normalizeHimalayas(raw);
     case 'remotive': return normalizeRemotive(raw);
     case 'unstop-hackathons': return normalizeUnstopHackathon(raw);
-    case 'unstop-workshops': return normalizeUnstopWorkshop(raw);
     default: return src.kind === 'paper' ? normalizeArxiv(raw) : null;
   }
 }
@@ -125,9 +123,6 @@ function sortKind(kind, items) {
   if (kind === 'job' || kind === 'paper') {
     return items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }
-  if (kind === 'event') {
-    return items.sort((a, b) => new Date(a.date || '2999') - new Date(b.date || '2999'));
-  }
   if (kind === 'course') {
     // Most popular first (MS Learn ships a real popularity score),
     // newest-seen breaks ties.
@@ -139,8 +134,8 @@ function sortKind(kind, items) {
 }
 
 // Pure: merge this round's `incoming` records with `previous` (merge-not-
-// replace, so a source that failed keeps its prior cards), re-drop now-past
-// events, sort, and cap. No state access — unit-testable without network.
+// replace, so a source that failed keeps its prior cards), sort, and cap.
+// No state access — unit-testable without network.
 function mergeKind(kind, incoming, previous) {
   const merged = incoming.slice();
   const seen = new Set(merged.map((r) => r.id));
@@ -160,14 +155,7 @@ function mergeKind(kind, incoming, previous) {
       }
     }
   }
-  // Re-drop stale events (a previously-future event may now be past).
   let result = merged;
-  if (kind === 'event') {
-    result = result.filter((r) => normalizeSheetRow(
-      { title: r.title, link: r.link, type: r.meta.type, date: r.date, mode: r.meta.mode, city: r.meta.city, free: r.meta.free },
-      'event',
-    ));
-  }
   // Jobs are India-focused — also scrubs pre-filter records carried in from
   // an old snapshot. Higher cap: company boards supply several hundred.
   if (kind === 'job') {
@@ -175,8 +163,8 @@ function mergeKind(kind, incoming, previous) {
     // Field tag for the chips filter; also backfills snapshot-hydrated records.
     for (const r of result) { if (!r.meta.field) r.meta.field = classifyJobField(r.title); }
   }
-  // Topic tag + first-seen stamp for courses/events/hackathons.
-  if (kind === 'course' || kind === 'event' || kind === 'hackathon') {
+  // Topic tag + first-seen stamp for courses/hackathons.
+  if (kind === 'course' || kind === 'hackathon') {
     for (const r of result) {
       if (!r.meta.category) r.meta.category = classifyTopic(r.title) || 'Tech';
       if (!r.meta.firstSeen) r.meta.firstSeen = new Date().toISOString();
@@ -224,7 +212,7 @@ async function doRefresh() {
   sheetResults.forEach((result, i) => {
     const { kind, tab } = SHEET_TABS[i];
     if (result.status === 'fulfilled') {
-      const records = result.value.map((row) => normalizeSheetRow(row, kind)).filter(Boolean);
+      const records = result.value.map((row) => normalizeSheetRow(row)).filter(Boolean);
       next[kind].push(...records);
       state.sourceStatus[`sheet:${tab}`] = { ok: true, items: records.length, at: new Date().toISOString() };
     } else {
@@ -286,7 +274,6 @@ const CITY_PATTERNS = {
 function getResources({ kind, page = 1, limit = 24, type = null, q = null, mode = null, city = null, exp = null, category = null, free = null } = {}) {
   let items = state.byKind[kind] || [];
   if (type && type !== 'all') {
-    if (kind === 'event') items = items.filter((r) => r.meta.type === type);
     if (kind === 'job') items = items.filter((r) => r.meta.field === type);
   }
   if (category && category !== 'all') {
@@ -294,9 +281,6 @@ function getResources({ kind, page = 1, limit = 24, type = null, q = null, mode 
   }
   if (free === 'free') items = items.filter((r) => r.meta.free === true);
   if (free === 'paid') items = items.filter((r) => r.meta.free !== true);
-  if (kind === 'event' && mode) {
-    items = items.filter((r) => (r.meta.mode || '') === (mode === 'online' ? 'online' : 'in-person'));
-  }
   if (q) {
     const needle = String(q).toLowerCase();
     items = items.filter((r) =>

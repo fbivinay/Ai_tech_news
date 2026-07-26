@@ -64,7 +64,7 @@ app.get('/api/categories', (_req, res) => {
   res.json({ categories: store.getCategories() });
 });
 
-// Explore resources: /api/explore, ?kind=papers&page=1, ?kind=events&type=workshop, ?snapshot=1
+// Explore resources: /api/explore, ?kind=papers&page=1, ?kind=hackathons&type=ai, ?snapshot=1
 app.get('/api/explore', (req, res) => {
   const { TAB_TO_KIND } = require('./src/config/resource-sources');
   if (req.query.snapshot) return res.json(resources.getSnapshot());

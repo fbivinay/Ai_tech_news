@@ -1,7 +1,6 @@
 // Pure normalizers: one per source shape → the canonical Explore record.
 // No network here, so this file is unit-testable in isolation. Returning
-// null drops the item (bad link, missing title, past-dated event, ended
-// hackathon).
+// null drops the item (bad link, missing title, ended hackathon).
 
 const { hashId, normalizeLink } = require('./feed');
 const { stripHtml, truncateWords } = require('./text');
@@ -182,7 +181,7 @@ function isIndiaEligibleJob(record) {
 // Career boards list every department — keep only AI/tech roles.
 const TECH_TITLE_RE = /engineer|developer|data|machine.?learning|\bml\b|\bai\b|scientist|analyst|devops|sre|architect|security|product|design|qa\b|sdet|platform|cloud|backend|frontend|full.?stack|mobile|android|ios\b|research|software|technical|technolog|infra/i;
 
-// AI/tech topic for courses, events, hackathons — first match wins.
+// AI/tech topic for courses, hackathons — first match wins.
 // Returns '' when nothing tech-related matches (used to drop off-topic
 // records from general catalogs like Coursera's).
 function classifyTopic(text) {
@@ -378,28 +377,6 @@ function normalizeCoursera(j) {
   });
 }
 
-// confs.tech community conference data (per-topic JSON, live repo).
-function normalizeConfsTech(c) {
-  if (!c || !c.name || !c.url) return null;
-  const past = c.endDate || c.startDate;
-  if (past && new Date(past) < new Date(new Date().toDateString())) return null;
-  if (!INDIA_RE.test(`${c.city || ''} ${c.country || ''}`)) return null;
-  return makeRecord({
-    kind: 'event',
-    title: c.name,
-    link: c.url,
-    source: 'confs.tech',
-    date: c.startDate || null,
-    meta: {
-      type: 'conference',
-      mode: c.online ? 'online' : 'in-person',
-      city: [c.city, c.country].filter(Boolean).join(', '),
-      free: false,
-      category: classifyTopic(c.name) || 'Tech',
-    },
-  });
-}
-
 // Unstop (unstop.com) — India's hackathon/workshop platform, public JSON API.
 // A record qualifies as India-eligible when it names an Indian address, or
 // carries no country at all (Unstop's online listings drop location data
@@ -442,59 +419,7 @@ function normalizeUnstopHackathon(it) {
   });
 }
 
-function normalizeUnstopWorkshop(it) {
-  if (!it || !it.title || !it.seo_url) return null;
-  if (!unstopIndiaEligible(it)) return null;
-  const category = classifyTopic(it.title);
-  if (!category) return null;
-  const city = it.address_with_country_logo && it.address_with_country_logo.city;
-  return makeRecord({
-    kind: 'event',
-    title: it.title,
-    link: it.seo_url,
-    source: 'Unstop',
-    blurb: (it.organisation && it.organisation.name) || '',
-    image: it.logoUrl2 || null,
-    date: it.end_date || null,
-    meta: {
-      type: 'workshop',
-      mode: it.region === 'online' ? 'online' : 'in-person',
-      city: city || (it.region === 'online' ? 'Online' : ''),
-      free: it.isPaid === false,
-      category,
-    },
-  });
-}
-
-function isPast(dateStr) {
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return d < today;
-}
-
-function normalizeSheetRow(row, kind) {
-  if (kind === 'event') {
-    if (isPast(row.date)) return null;
-    return makeRecord({
-      kind: 'event',
-      title: row.title,
-      link: row.link,
-      source: row.source || 'Community',
-      blurb: row.blurb || '',
-      image: row.image || null,
-      date: row.date || null,
-      meta: {
-        type: String(row.type || 'conference').toLowerCase().trim(),
-        mode: row.mode || '',
-        city: row.city || '',
-        free: truthy(row.free),
-      },
-    });
-  }
-  // course
+function normalizeSheetRow(row) {
   return makeRecord({
     kind: 'course',
     title: row.title,
@@ -516,6 +441,6 @@ module.exports = {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, salFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
-  normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
-  normalizeUnstopHackathon, normalizeUnstopWorkshop, normalizeSheetRow,
+  normalizeMsLearn, normalizeCoursera, classifyTopic,
+  normalizeUnstopHackathon, normalizeSheetRow,
 };

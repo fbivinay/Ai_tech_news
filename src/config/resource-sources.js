@@ -69,11 +69,6 @@ const FEED_SOURCES = [
     url: 'https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&oppstatus=open&page=1&per_page=100',
     arrayPath: 'data.data',
   },
-  {
-    id: 'unstop-workshops', kind: 'event', type: 'json', ttlMs: 2 * 3600e3,
-    url: 'https://unstop.com/api/public/opportunity/search-result?opportunity=workshops&oppstatus=open&page=1&per_page=100',
-    arrayPath: 'data.data',
-  },
 
   // Courses — live provider catalogs. Heavy payloads, so refreshed on a TTL
   // (merge keeps cards between fetches), not every 60s cycle.
@@ -83,31 +78,18 @@ const FEED_SOURCES = [
     url: `https://api.coursera.org/api/courses.v1?start=${start}&limit=100&fields=name,photoUrl,slug`,
     arrayPath: 'elements',
   })),
-
-  // Conferences — confs.tech community data, current + next year per topic.
-  ...(() => {
-    const year = new Date().getFullYear();
-    const topics = ['data', 'python', 'devops', 'security', 'general'];
-    return [year, year + 1].flatMap((y) => topics.map((topic) => ({
-      id: `confstech-${y}-${topic}`, kind: 'event', type: 'json', ttlMs: 6 * 3600e3,
-      url: `https://raw.githubusercontent.com/tech-conferences/conference-data/main/conferences/${y}/${topic}.json`,
-      arrayPath: null,
-    })));
-  })(),
 ];
 
 // Google Sheet tabs (curated but live-editable). Requires EXPLORE_SHEET_ID.
 const SHEET_TABS = [
-  { kind: 'event', tab: 'events' },
   { kind: 'course', tab: 'courses' },
 ];
 
-const KINDS = ['paper', 'job', 'event', 'course', 'hackathon'];
+const KINDS = ['paper', 'job', 'course', 'hackathon'];
 
 const TAB_TO_KIND = {
   papers: 'paper',
   jobs: 'job',
-  events: 'event',
   courses: 'course',
   hackathons: 'hackathon',
 };

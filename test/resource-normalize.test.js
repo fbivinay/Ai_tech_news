@@ -43,18 +43,8 @@ assert.strictEqual(hack.meta.mode, 'online');
 assert.strictEqual(hack.meta.prize, '$10,000'); // HTML stripped from prize_amount
 assert.strictEqual(hack.image, 'https://challengepost.com/thumb.png'); // protocol-relative thumbnail upgraded to https
 
-// Sheet events: past-dated events are dropped
-assert.strictEqual(
-  normalizeSheetRow({ title: 'Old Conf', link: 'https://x.com/c', type: 'Conference', date: '2000-01-01' }, 'event'),
-  null,
-);
-const evt = normalizeSheetRow({ title: 'Future Conf', link: 'https://x.com/c2', type: 'Workshop', date: '2099-01-01', city: 'Berlin', mode: 'in-person', free: 'yes' }, 'event');
-assert.strictEqual(evt.kind, 'event');
-assert.strictEqual(evt.meta.type, 'workshop');
-assert.strictEqual(evt.meta.free, true);
-
 // Sheet courses: cert flag parsed
-const course = normalizeSheetRow({ title: 'Intro to ML', link: 'https://x.com/course', provider: 'DeepLearning.AI', level: 'Beginner', cert: 'Yes' }, 'course');
+const course = normalizeSheetRow({ title: 'Intro to ML', link: 'https://x.com/course', provider: 'DeepLearning.AI', level: 'Beginner', cert: 'Yes' });
 assert.strictEqual(course.kind, 'course');
 assert.strictEqual(course.meta.cert, true);
 assert.strictEqual(course.source, 'DeepLearning.AI');
@@ -144,7 +134,7 @@ assert.strictEqual(as.meta.salary, '₹30L – ₹45L');
 assert.strictEqual(as.meta.location, 'Bengaluru, Mumbai');
 
 // Topic classification
-const { classifyTopic, normalizeMsLearn, normalizeCoursera, normalizeConfsTech } = require('../src/lib/resource-normalize');
+const { classifyTopic, normalizeMsLearn, normalizeCoursera } = require('../src/lib/resource-normalize');
 assert.strictEqual(classifyTopic('Build RAG applications'), 'RAG');
 assert.strictEqual(classifyTopic('Intro to Large Language Models'), 'LLMs');
 assert.strictEqual(classifyTopic('Deep Learning with PyTorch'), 'Deep Learning');
@@ -162,12 +152,5 @@ assert.strictEqual(normalizeCoursera({ name: 'Guitar for Beginners', slug: 'guit
 const cou = normalizeCoursera({ name: 'Machine Learning Specialization', slug: 'ml-spec', photoUrl: 'https://c.org/p.png' });
 assert.strictEqual(cou.link, 'https://www.coursera.org/learn/ml-spec');
 assert.strictEqual(cou.meta.category, 'Machine Learning');
-
-// confs.tech: past dropped, future kept with mode/city
-assert.strictEqual(normalizeConfsTech({ name: 'Old AI Conf', url: 'https://x.com/c', startDate: '2020-01-01', endDate: '2020-01-02' }), null);
-const conf = normalizeConfsTech({ name: 'PyData Global', url: 'https://x.com/pd', startDate: '2099-06-01', city: 'Bengaluru', country: 'India', online: false });
-assert.strictEqual(conf.meta.mode, 'in-person');
-assert.strictEqual(conf.meta.city, 'Bengaluru, India');
-assert.strictEqual(conf.meta.type, 'conference');
 
 console.log('resource-normalize.test OK');
