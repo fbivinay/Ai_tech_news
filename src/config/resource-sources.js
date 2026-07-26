@@ -83,6 +83,29 @@ const FEED_SOURCES = [
     url: `https://api.coursera.org/api/courses.v1?start=${start}&limit=100&fields=name,photoUrl,slug`,
     arrayPath: 'elements',
   })),
+  // Free-course YouTube channels — no keyless catalog API exists for most
+  // major providers (Udemy/edX/Pluralsight/Khan Academy/Class Central all
+  // require auth or block server-side requests; checked live 2026-07-26).
+  // Channel RSS is public, keyless, and ships a real per-video thumbnail
+  // (unlike MS Learn's catalog, which reuses one generic image for every
+  // path). Tech-topic-filtered + Shorts-dropped in resource-normalize.js.
+  ...[
+    ['yt-freecodecamp', 'UC8butISFwT-Wl7EV0hUK0BQ', 'freeCodeCamp.org'],
+    ['yt-traversy', 'UC29ju8bIPH5as8OGnQzwJyA', 'Traversy Media'],
+    ['yt-mosh', 'UCWv7vMbMWH4-V0ZXdmDpPBA', 'Programming with Mosh'],
+    ['yt-fireship', 'UCsBjURrPoezykLs9EqgamOA', 'Fireship'],
+    ['yt-techwithtim', 'UC4JX40jDee_tINbkjycV4Sg', 'Tech With Tim'],
+    ['yt-netninja', 'UCW5YeuERMmlnqo4oq8vwUpg', 'The Net Ninja'],
+    ['yt-academind', 'UCSJbGtTlrDami-tDGPUV9-w', 'Academind'],
+    ['yt-kevinpowell', 'UCJZv4d5rbIKd4QHMPkcABCw', 'Kevin Powell'],
+    ['yt-neetcode', 'UC_mYaQAE6-71rjSN6CeCA-g', 'NeetCode'],
+    ['yt-coreyschafer', 'UCCezIgC97PvUuR4_gbFUs5g', 'Corey Schafer'],
+    ['yt-cs50', 'UCcabW7890RKJzL968QWEykA', 'CS50'],
+    ['yt-sentdex', 'UCfzlCWGWYyIQ0aLC5w48gBQ', 'sentdex'],
+  ].map(([id, channelId, channel]) => ({
+    id, kind: 'course', type: 'rss', channel, ttlMs: 3 * 3600e3,
+    url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+  })),
 
   // Conferences — confs.tech community data, current + next year per topic.
   ...(() => {

@@ -338,8 +338,11 @@ function normalizeMuse(j) {
   });
 }
 
-// Microsoft Learn catalog — keyless, free, has images + a real popularity
-// score. Everything on it is tech; category still computed for the chips.
+// Microsoft Learn catalog — keyless, free, has a real popularity score.
+// social_image_url is the same generic badge for every single path (checked
+// live: 882/882 identical) — icon_url is the per-path achievement badge, the
+// only field that actually varies. Everything on it is tech; category still
+// computed for the chips.
 function normalizeMsLearn(j) {
   if (!j || !j.title || !j.url) return null;
   return makeRecord({
@@ -347,7 +350,7 @@ function normalizeMsLearn(j) {
     title: j.title,
     link: j.url,
     source: 'Microsoft Learn',
-    image: j.social_image_url || j.icon_url || null,
+    image: j.icon_url || j.social_image_url || null,
     date: j.last_modified || null,
     meta: {
       provider: 'Microsoft Learn',
@@ -375,6 +378,27 @@ function normalizeCoursera(j) {
     image: j.photoUrl || null,
     date: null,
     meta: { provider: 'Coursera', level: '', cert: true, free: false, category, popularity: 0, duration: '' },
+  });
+}
+
+// Free-course YouTube channels — Atom feed, video → media:group → thumbnail
+// (custom-parsed in feed.js). Shorts are clips, not lessons, so they're
+// dropped; off-topic uploads are dropped like Coursera's general catalog.
+function normalizeYoutubeCourse(entry, channel) {
+  if (!entry || !entry.title || !entry.link) return null;
+  if (/\/shorts\//.test(entry.link)) return null;
+  const category = classifyTopic(entry.title);
+  if (!category) return null;
+  const group = entry.mediaGroup || {};
+  const thumb = group['media:thumbnail'] && group['media:thumbnail'][0] && group['media:thumbnail'][0].$;
+  return makeRecord({
+    kind: 'course',
+    title: entry.title,
+    link: entry.link,
+    source: channel,
+    image: (thumb && thumb.url) || null,
+    date: entry.isoDate || entry.pubDate || null,
+    meta: { provider: channel, level: '', cert: false, free: true, category, popularity: 0, duration: '' },
   });
 }
 
@@ -516,6 +540,6 @@ module.exports = {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, salFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
-  normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
+  normalizeMsLearn, normalizeCoursera, normalizeYoutubeCourse, normalizeConfsTech, classifyTopic,
   normalizeUnstopHackathon, normalizeUnstopWorkshop, normalizeSheetRow,
 };
