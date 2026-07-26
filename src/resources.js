@@ -11,7 +11,7 @@ const {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby, expFromText, salFromText,
-  normalizeMsLearn, normalizeCoursera, normalizeConfsTech, classifyTopic,
+  normalizeMsLearn, normalizeCoursera, normalizeYoutubeCourse, normalizeConfsTech, classifyTopic,
   normalizeUnstopHackathon, normalizeUnstopWorkshop,
 } = require('./lib/resource-normalize');
 const { stripHtml } = require('./lib/text');
@@ -64,6 +64,7 @@ function normalizeFeedItem(src, raw) {
   if (src.id.startsWith('themuse')) return normalizeMuse(raw);
   if (src.id.startsWith('coursera')) return normalizeCoursera(raw);
   if (src.id.startsWith('confstech')) return normalizeConfsTech(raw);
+  if (src.id.startsWith('yt-')) return normalizeYoutubeCourse(raw, src.channel);
   if (src.id === 'mslearn') return normalizeMsLearn(raw);
   switch (src.id) {
     case 'remoteok': return normalizeRemoteOK(raw);
@@ -121,6 +122,25 @@ async function fetchFeedSource(src) {
   return records;
 }
 
+// Round-robin by provider so one source with many items (or a nonzero
+// popularity score, like MS Learn) can't bury every other provider past
+// page 1 — each provider's own internal order (set by the caller) survives
+// within its slot.
+function diversifyByProvider(items) {
+  const groups = new Map();
+  for (const it of items) {
+    const key = (it.meta && it.meta.provider) || it.source || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  }
+  const buckets = [...groups.values()];
+  const out = [];
+  for (let i = 0; out.length < items.length; i++) {
+    for (const b of buckets) if (i < b.length) out.push(b[i]);
+  }
+  return out;
+}
+
 function sortKind(kind, items) {
   if (kind === 'job' || kind === 'paper') {
     return items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
@@ -129,11 +149,13 @@ function sortKind(kind, items) {
     return items.sort((a, b) => new Date(a.date || '2999') - new Date(b.date || '2999'));
   }
   if (kind === 'course') {
-    // Most popular first (MS Learn ships a real popularity score),
-    // newest-seen breaks ties.
-    return items.sort((a, b) =>
+    // Most popular first within each provider (MS Learn ships a real
+    // popularity score), newest-seen breaks ties; then interleaved so the
+    // list isn't just one provider deep.
+    const sorted = items.sort((a, b) =>
       ((b.meta && b.meta.popularity) || 0) - ((a.meta && a.meta.popularity) || 0)
       || new Date((b.meta && b.meta.firstSeen) || 0) - new Date((a.meta && a.meta.firstSeen) || 0));
+    return diversifyByProvider(sorted);
   }
   return items; // hackathon: keep source order
 }
