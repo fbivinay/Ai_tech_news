@@ -83,28 +83,61 @@ const FEED_SOURCES = [
     url: `https://api.coursera.org/api/courses.v1?start=${start}&limit=100&fields=name,photoUrl,slug`,
     arrayPath: 'elements',
   })),
-  // Free-course YouTube channels — no keyless catalog API exists for most
-  // major providers (Udemy/edX/Pluralsight/Khan Academy/Class Central all
-  // require auth or block server-side requests; checked live 2026-07-26).
-  // Channel RSS is public, keyless, and ships a real per-video thumbnail
-  // (unlike MS Learn's catalog, which reuses one generic image for every
-  // path). Tech-topic-filtered + Shorts-dropped in resource-normalize.js.
+  // Free multi-part course playlists from reputable teaching channels — no
+  // keyless catalog API exists for most major course *websites* (Udemy/edX/
+  // Pluralsight/Khan Academy/Class Central all require auth or block
+  // server-side requests; checked live 2026-07-26), so this is the one
+  // other real source of variety. Each entry is ONE playlist (a real,
+  // hand-picked structured course — not a channel's whole upload history,
+  // which is mostly unrelated one-off videos): the playlist's own title +
+  // its first video's thumbnail become the course card, and the card links
+  // to the playlist, never a single video. Picked and video-count-checked
+  // live 2026-07-26 from each channel's public playlist list.
   ...[
-    ['yt-freecodecamp', 'UC8butISFwT-Wl7EV0hUK0BQ', 'freeCodeCamp.org'],
-    ['yt-traversy', 'UC29ju8bIPH5as8OGnQzwJyA', 'Traversy Media'],
-    ['yt-mosh', 'UCWv7vMbMWH4-V0ZXdmDpPBA', 'Programming with Mosh'],
-    ['yt-fireship', 'UCsBjURrPoezykLs9EqgamOA', 'Fireship'],
-    ['yt-techwithtim', 'UC4JX40jDee_tINbkjycV4Sg', 'Tech With Tim'],
-    ['yt-netninja', 'UCW5YeuERMmlnqo4oq8vwUpg', 'The Net Ninja'],
-    ['yt-academind', 'UCSJbGtTlrDami-tDGPUV9-w', 'Academind'],
-    ['yt-kevinpowell', 'UCJZv4d5rbIKd4QHMPkcABCw', 'Kevin Powell'],
-    ['yt-neetcode', 'UC_mYaQAE6-71rjSN6CeCA-g', 'NeetCode'],
-    ['yt-coreyschafer', 'UCCezIgC97PvUuR4_gbFUs5g', 'Corey Schafer'],
-    ['yt-cs50', 'UCcabW7890RKJzL968QWEykA', 'CS50'],
-    ['yt-sentdex', 'UCfzlCWGWYyIQ0aLC5w48gBQ', 'sentdex'],
-  ].map(([id, channelId, channel]) => ({
-    id, kind: 'course', type: 'rss', channel, ttlMs: 3 * 3600e3,
-    url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+    ['ytpl-fcc-frontend-path', 'PLWKjhJtqVAbmMuZ3saqRIBimAKIMYkt0E', 'freeCodeCamp.org'],
+    ['ytpl-fcc-backend-path', 'PLWKjhJtqVAbn21gs5UnLhCQ82f923WCgM', 'freeCodeCamp.org'],
+    ['ytpl-fcc-data-analysis', 'PLWKjhJtqVAblvI1i46ScbKV2jH1gdL7VQ', 'freeCodeCamp.org'],
+    ['ytpl-fcc-devops', 'PLWKjhJtqVAbkzvvpY12KkfiIGso9A_Ixs', 'freeCodeCamp.org'],
+    ['ytpl-traversy-js-under-hood', 'PLillGF-Rfqbars4vKNtpcWVDUpVOVTlgB', 'Traversy Media'],
+    ['ytpl-traversy-mern', 'PLillGF-RfqbbiTGgA77tGO426V3hRF9iE', 'Traversy Media'],
+    ['ytpl-traversy-react-django', 'PLillGF-RfqbbRA-CIUxlxkUpbq0IFkX60', 'Traversy Media'],
+    ['ytpl-traversy-graphql', 'PLillGF-RfqbZrjw48EXLdM4dsOhURCLZx', 'Traversy Media'],
+    ['ytpl-mosh-frontend', 'PLTjRvDozrdlw5En5v2xrBr_EqieHf7hGs', 'Programming with Mosh'],
+    ['ytpl-mosh-backend', 'PLTjRvDozrdlynYXGUfyyMZdrQ0Sz27aud', 'Programming with Mosh'],
+    ['ytpl-mosh-python', 'PLTjRvDozrdlxj5wgH4qkvwSOdHLOCx10f', 'Programming with Mosh'],
+    ['ytpl-mosh-javascript', 'PLTjRvDozrdlxEIuOBZkMAK5uiqp8rHUax', 'Programming with Mosh'],
+    ['ytpl-tim-rust', 'PLzMcBGfZo4-nyLTlSRBvo0zjSnCnqjHYQ', 'Tech With Tim'],
+    ['ytpl-tim-cpp', 'PLzMcBGfZo4-lmGC8VW0iu6qfMHjy7gLQ3', 'Tech With Tim'],
+    ['ytpl-tim-linux', 'PLzMcBGfZo4-nUIIMsz040W_X-03QH5c5h', 'Tech With Tim'],
+    ['ytpl-tim-react', 'PLzMcBGfZo4-nRV61oEu3KfMwWKI571uPT', 'Tech With Tim'],
+    ['ytpl-netninja-react-native', 'PL4cUxeGkcC9hNTz3sxqGTfxAwU-DIHJd2', 'The Net Ninja'],
+    ['ytpl-netninja-django-htmx', 'PL4cUxeGkcC9hgO93oEHPBMuLA20y0SBVK', 'The Net Ninja'],
+    ['ytpl-netninja-git', 'PL4cUxeGkcC9j2pbmcA93DR1A3m7VEgSxK', 'The Net Ninja'],
+    ['ytpl-netninja-unit-testing', 'PL4cUxeGkcC9iyuClsf48SSgsJPBStHo7F', 'The Net Ninja'],
+    ['ytpl-academind-aws', 'PL55RiY5tL51rudermnWTq1LlGC1BL1g3l', 'Academind'],
+    ['ytpl-academind-python-data', 'PL55RiY5tL51o5jBXR1h2JvFm0L-fbThG4', 'Academind'],
+    ['ytpl-academind-rest-api', 'PL55RiY5tL51q4D-B63KBnygU6opNPFk_q', 'Academind'],
+    ['ytpl-academind-webdev-beginners', 'PL55RiY5tL51rv_vo3TM3Byu71RYchX_l_', 'Academind'],
+    ['ytpl-kevinpowell-html-css', 'PL4-IK0AVhVjOJs_UjdQeyEZ_cmEV3uJvx', 'Kevin Powell'],
+    ['ytpl-kevinpowell-new-css', 'PL4-IK0AVhVjNMhAxy8UC-SRbaPD5daKnH', 'Kevin Powell'],
+    ['ytpl-neetcode-150', 'PLot-Xpze53lfJlNm5S0fq3AmoyugNGqPk', 'NeetCode'],
+    ['ytpl-neetcode-system-design', 'PLot-Xpze53le35rQuIbRET3YwEtrcJfdt', 'NeetCode'],
+    ['ytpl-neetcode-dp', 'PLot-Xpze53lcvx_tjrr_m2lgD2NsRHlNO', 'NeetCode'],
+    ['ytpl-neetcode-graphs', 'PLot-Xpze53ldBT_7QA8NVot219jFNr_GI', 'NeetCode'],
+    ['ytpl-corey-python-beginner', 'PL-osiE80TeTskrapNbzXhwoFUiLCjGgY7', 'Corey Schafer'],
+    ['ytpl-corey-django', 'PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p', 'Corey Schafer'],
+    ['ytpl-corey-flask', 'PL-osiE80TeTs4UjLw5MM6OjgkjFeUxCYH', 'Corey Schafer'],
+    ['ytpl-corey-pandas', 'PL-osiE80TeTsWmV9i9c58mdDCSskIFdDS', 'Corey Schafer'],
+    ['ytpl-cs50x-2025', 'PLhQjrBD2T383q7Vn8QnTsVgSvyLpsqL_R', 'CS50'],
+    ['ytpl-cs50-cybersecurity', 'PLhQjrBD2T383Cqo5I1oRrbC1EKRAKGKUE', 'CS50'],
+    ['ytpl-cs50-r', 'PLhQjrBD2T382yfNp_-xzX244d-O9W6YmD', 'CS50'],
+    ['ytpl-sentdex-nn-from-scratch', 'PLQVvvaa0QuDcjD5BAw2DxE6OF2tius3V3', 'sentdex'],
+    ['ytpl-sentdex-pytorch', 'PLQVvvaa0QuDdeMyHEYc0gxFpYwHY2Qfdh', 'sentdex'],
+    ['ytpl-sentdex-reinforcement-learning', 'PLQVvvaa0QuDezJFIOU5wDdfy4e9vdnx-7', 'sentdex'],
+    ['ytpl-sentdex-pandas', 'PLQVvvaa0QuDfSfqQuee6K8opKtZsh7sA9', 'sentdex'],
+  ].map(([id, playlistId, channel]) => ({
+    id, kind: 'course', type: 'ytplaylist', channel, ttlMs: 6 * 3600e3,
+    url: `https://www.youtube.com/feeds/videos.xml?playlist_id=${playlistId}`,
   })),
 
   // Conferences — confs.tech community data, current + next year per topic.

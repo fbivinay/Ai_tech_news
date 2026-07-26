@@ -11,7 +11,7 @@ const {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, TECH_TITLE_RE, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby, expFromText, salFromText,
-  normalizeMsLearn, normalizeCoursera, normalizeYoutubeCourse, normalizeConfsTech, classifyTopic,
+  normalizeMsLearn, normalizeCoursera, normalizeYoutubePlaylist, normalizeConfsTech, classifyTopic,
   normalizeUnstopHackathon, normalizeUnstopWorkshop,
 } = require('./lib/resource-normalize');
 const { stripHtml } = require('./lib/text');
@@ -64,7 +64,6 @@ function normalizeFeedItem(src, raw) {
   if (src.id.startsWith('themuse')) return normalizeMuse(raw);
   if (src.id.startsWith('coursera')) return normalizeCoursera(raw);
   if (src.id.startsWith('confstech')) return normalizeConfsTech(raw);
-  if (src.id.startsWith('yt-')) return normalizeYoutubeCourse(raw, src.channel);
   if (src.id === 'mslearn') return normalizeMsLearn(raw);
   switch (src.id) {
     case 'remoteok': return normalizeRemoteOK(raw);
@@ -99,6 +98,11 @@ async function fetchATS(src) {
 
 async function fetchFeedSource(src) {
   if (src.type === 'ats') return fetchATS(src);
+  if (src.type === 'ytplaylist') {
+    const feed = await fetchFeed(src.url);
+    const rec = normalizeYoutubePlaylist(feed, src);
+    return rec ? [rec] : [];
+  }
   if (src.type === 'rss') {
     const feed = await fetchFeed(src.url);
     return (feed.items || []).map((raw) => normalizeFeedItem(src, raw));

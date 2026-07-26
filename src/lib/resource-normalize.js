@@ -381,24 +381,28 @@ function normalizeCoursera(j) {
   });
 }
 
-// Free-course YouTube channels — Atom feed, video → media:group → thumbnail
-// (custom-parsed in feed.js). Shorts are clips, not lessons, so they're
-// dropped; off-topic uploads are dropped like Coursera's general catalog.
-function normalizeYoutubeCourse(entry, channel) {
-  if (!entry || !entry.title || !entry.link) return null;
-  if (/\/shorts\//.test(entry.link)) return null;
-  const category = classifyTopic(entry.title);
-  if (!category) return null;
-  const group = entry.mediaGroup || {};
+// A YouTube playlist (a real, hand-picked multi-part course) becomes ONE
+// course card — the playlist's own title + its first video's thumbnail
+// (parsed from the Atom feed's media:group, see feed.js), linking to the
+// playlist itself rather than any single video inside it.
+function normalizeYoutubePlaylist(feed, src) {
+  if (!feed || !feed.title || !feed.items || !feed.items.length) return null;
+  const first = feed.items[0];
+  const group = first.mediaGroup || {};
   const thumb = group['media:thumbnail'] && group['media:thumbnail'][0] && group['media:thumbnail'][0].$;
+  const playlistId = new URL(src.url).searchParams.get('playlist_id');
   return makeRecord({
     kind: 'course',
-    title: entry.title,
-    link: entry.link,
-    source: channel,
+    title: feed.title,
+    link: `https://www.youtube.com/playlist?list=${playlistId}`,
+    source: src.channel,
+    blurb: `${feed.items.length}-part video course`,
     image: (thumb && thumb.url) || null,
-    date: entry.isoDate || entry.pubDate || null,
-    meta: { provider: channel, level: '', cert: false, free: true, category, popularity: 0, duration: '' },
+    date: first.isoDate || first.pubDate || null,
+    meta: {
+      provider: src.channel, level: '', cert: false, free: true,
+      category: classifyTopic(feed.title) || 'Tech', popularity: 0, duration: '',
+    },
   });
 }
 
@@ -540,6 +544,6 @@ module.exports = {
   normalizeArbeitnow, normalizeJobicy, normalizeHimalayas, normalizeMuse,
   normalizeRemotive, isIndiaEligibleJob, INDIA_RE, TECH_TITLE_RE, expFromText, salFromText, classifyJobField,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
-  normalizeMsLearn, normalizeCoursera, normalizeYoutubeCourse, normalizeConfsTech, classifyTopic,
+  normalizeMsLearn, normalizeCoursera, normalizeYoutubePlaylist, normalizeConfsTech, classifyTopic,
   normalizeUnstopHackathon, normalizeUnstopWorkshop, normalizeSheetRow,
 };
