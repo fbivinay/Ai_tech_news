@@ -831,20 +831,23 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .top-nav a:hover { color: var(--ink); }
 .top-nav a.active { color: var(--red); border-bottom-color: var(--red); }
 
-/* Desktop: fold the nav back onto the brand row, truly centered on the row
-   (not just centered in the leftover space next to the logo) — the header-inner
-   wrapper is dissolved via display:contents so brand/toggle/nav become three
-   independent grid columns. */
-@media (min-width: 761px) {
-  .site-header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
+/* Wide desktop: fold the nav onto the brand row, centered on the page.
+   Only above 1400px — brand (~275px) + six links (~840px) + toggle need that
+   much room, and below it the nav collides with the logo. Narrower screens keep
+   the full-width bar above. header-inner is dissolved with display:contents so
+   brand/toggle/nav become sibling grid items; 1fr/auto/1fr side tracks are what
+   centers the nav on the page (auto/1fr/auto only centers the leftover space). */
+@media (min-width: 1400px) {
+  .site-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
   .header-inner { display: contents; }
-  .brand { grid-column: 1; padding: 14px 0 14px 24px; }
-  .theme-toggle { grid-column: 3; margin-right: 24px; }
+  .brand { grid-area: 1 / 1; justify-self: start; padding: 14px 0 14px 24px; }
+  .theme-toggle { grid-area: 1 / 3; justify-self: end; margin-right: 24px; }
   .top-nav {
-    grid-column: 2;
+    grid-area: 1 / 2;
     justify-content: center;
-    gap: 28px;
+    gap: 24px;
     padding: 0;
+    min-width: 0;
     border-bottom: none;
   }
   .top-nav a { font-size: 17px; padding: 4px 2px; border-bottom-width: 2px; }
