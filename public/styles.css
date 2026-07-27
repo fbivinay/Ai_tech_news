@@ -837,12 +837,12 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
   .header-inner { flex: 0 0 auto; padding: 14px 0 14px 24px; }
   .top-nav {
     flex: 1 1 auto;
-    justify-content: flex-end;
-    gap: 24px;
-    padding: 0 24px 0 12px;
+    justify-content: center;
+    gap: 28px;
+    padding: 0 24px;
     border-bottom: none;
   }
-  .top-nav a { font-size: 14.5px; padding: 4px 2px; border-bottom-width: 2px; }
+  .top-nav a { font-size: 17px; padding: 4px 2px; border-bottom-width: 2px; }
   .section-nav { flex-basis: 100%; }
 }
 
