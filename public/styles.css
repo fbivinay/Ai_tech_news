@@ -831,19 +831,24 @@ html[data-theme='dark'] .site-header.scrolled { box-shadow: 0 4px 20px rgba(0, 0
 .top-nav a:hover { color: var(--ink); }
 .top-nav a.active { color: var(--red); border-bottom-color: var(--red); }
 
-/* Desktop: fold the nav back onto the brand row instead of its own big bar */
+/* Desktop: fold the nav back onto the brand row, truly centered on the row
+   (not just centered in the leftover space next to the logo) — the header-inner
+   wrapper is dissolved via display:contents so brand/toggle/nav become three
+   independent grid columns. */
 @media (min-width: 761px) {
-  .site-header { display: flex; flex-wrap: wrap; align-items: center; }
-  .header-inner { flex: 0 0 auto; padding: 14px 0 14px 24px; }
+  .site-header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
+  .header-inner { display: contents; }
+  .brand { grid-column: 1; padding: 14px 0 14px 24px; }
+  .theme-toggle { grid-column: 3; margin-right: 24px; }
   .top-nav {
-    flex: 1 1 auto;
+    grid-column: 2;
     justify-content: center;
     gap: 28px;
-    padding: 0 24px;
+    padding: 0;
     border-bottom: none;
   }
   .top-nav a { font-size: 17px; padding: 4px 2px; border-bottom-width: 2px; }
-  .section-nav { flex-basis: 100%; }
+  .section-nav { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {
