@@ -1,5 +1,11 @@
 # ⚡ Update Bro!
 
+[![tests](https://github.com/fbivinay/Ai_tech_news/actions/workflows/tests.yml/badge.svg)](https://github.com/fbivinay/Ai_tech_news/actions/workflows/tests.yml)
+
+**Live:** https://ai-tech-news-alpha.vercel.app
+
+![The home page: top story, trending rail and categories](docs/screenshot.png)
+
 > The fastest way to stay updated on AI and technology. Read concise AI-generated summaries and go directly to the original source for the full story.
 
 A **news discovery and aggregation platform** for AI & technology — not a publisher. The platform never copies, stores, republishes, or displays full news articles. Every card shows a headline, source attribution, and a short AI-generated summary (50–100 words), and links straight to the original publisher, who receives the referral traffic.
