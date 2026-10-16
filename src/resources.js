@@ -16,7 +16,8 @@ const {
 } = require('./lib/resource-normalize');
 const { stripHtml } = require('./lib/text');
 
-const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
+// Papers, jobs, courses and events change over hours, not minutes; refetching every source costs CPU time.
+const REFRESH_INTERVAL_MS = Number(process.env.RESOURCES_REFRESH_INTERVAL_MS || 30 * 60 * 1000);
 const JSON_TIMEOUT_MS = 7000;
 const MAX_PER_KIND = 120;
 

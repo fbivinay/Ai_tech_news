@@ -10,7 +10,7 @@ module.exports = async (_req, res) => {
   }
   if (!store.state.refreshing) {
     const stale = !store.state.lastRefresh ||
-      Date.now() - new Date(store.state.lastRefresh).getTime() > 60 * 1000;
+      Date.now() - new Date(store.state.lastRefresh).getTime() > store.REFRESH_INTERVAL_MS;
     if (stale) {
       const background = store.refresh({ maxSummaryBatches: 0 })
         .catch((err) => console.error('[snapshot] refresh failed:', err.message));

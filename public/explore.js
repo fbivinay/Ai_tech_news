@@ -407,10 +407,10 @@
     }
   }
 
-  /* ---------- Live updates: poll every minute ----------
+  /* ---------- Live updates: poll every 5 minutes ----------
      Refresh in place only while the reader hasn't engaged (top of page, no
      load-more) — never re-render under someone reading. */
-  const POLL_MS = 60 * 1000;
+  const POLL_MS = 5 * 60 * 1000;
   async function poll() {
     if (document.hidden || window.scrollY > 200 || state.page > 2 || state.loading) return;
     try {

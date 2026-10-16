@@ -25,10 +25,10 @@ async function ensureReadyForRequest() {
 }
 
 function cacheHeaders(res) {
-  // 1-minute edge cache; stale copies may be served for at most 5 more
-  // minutes while the CDN revalidates. A day-long SWR window used to let
-  // low-traffic edges serve day-old news on first load.
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+  // 5-minute edge cache (the data refreshes every 15); stale copies may be served
+  // for at most 15 more minutes while the CDN revalidates. A day-long SWR window
+  // used to let low-traffic edges serve day-old news on first load.
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=900');
 }
 
 function warmingResponse(res) {

@@ -1,7 +1,7 @@
 /* Update Bro! frontend — Netflix-style homepage.
    Billboard hero + horizontal rails + "Latest" grid with Load More button.
    Fast by design: one /api/home request per load, skeleton screens, instant
-   repaint from localStorage on repeat visits, 60-second live polling with a
+   repaint from localStorage on repeat visits, 5-minute live polling with a
    "New stories" pill (the page never reshuffles itself), and explicit
    load-more pagination. */
 
@@ -17,7 +17,7 @@
 
   const CACHE_KEY = 'home-cache-v3';
   const CACHE_MAX_AGE_MS = 30 * 60 * 1000;
-  const POLL_MS = 60 * 1000;
+  const POLL_MS = 5 * 60 * 1000;
 
   const $ = (id) => document.getElementById(id);
   const billboardEl = $('billboard');
@@ -129,7 +129,7 @@
   }
 
   // Foreground-only: fires while this tab is open, piggybacking on the
-  // existing 60s poll below. No service worker / push subscription needed.
+  // existing 5-minute poll below. No service worker / push subscription needed.
   function notifyTopStory(home) {
     if (Notification.permission !== 'granted') return;
     const item = home.hero;
@@ -689,7 +689,7 @@
     }
   }
 
-  /* ---------- Live updates: poll every minute ---------- */
+  /* ---------- Live updates: poll every 5 minutes ---------- */
 
   async function poll() {
     if (document.hidden) return;

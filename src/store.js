@@ -12,7 +12,9 @@ const { classify } = require('./lib/classify');
 const { scoreItem } = require('./lib/score');
 const { summarizeAll, aiEnabled } = require('./lib/summarize');
 
-const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 60 * 1000);
+// Refetching and parsing 36 feeds is the costly part of this app (Vercel bills it as CPU time), so a
+// refresh runs at most every 15 minutes: news pages and wires move slower than that anyway.
+const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 15 * 60 * 1000);
 const MAX_ITEMS_PER_SOURCE = 20;
 const MAX_AGE_DAYS = 7;
 const HERO_MAX_AGE_HOURS = 36;
@@ -230,7 +232,7 @@ async function doRefresh({ maxSummaryBatches = Infinity } = {}) {
 // news, not the seed's. Bounded by budgetMs in case we end up awaiting an
 // in-flight refresh that includes a slow Claude batch — past the budget we
 // serve what we have rather than keep the visitor staring at skeletons.
-async function ensureFresh(maxAgeMs = 5 * 60 * 1000, budgetMs = 12000) {
+async function ensureFresh(maxAgeMs = REFRESH_INTERVAL_MS, budgetMs = 12000) {
   if (state.lastRefresh && Date.now() - new Date(state.lastRefresh).getTime() <= maxAgeMs) return;
   const done = refresh({ maxSummaryBatches: 0 }).catch((err) => {
     console.error('[refresh] blocking fresh refresh failed:', err.message);
@@ -417,4 +419,4 @@ async function ensureReady() {
   return { ready: false, background };
 }
 
-module.exports = { start, ensureReady, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, getHealth, loadSeed, state };
+module.exports = { start, ensureReady, ensureFresh, refresh, getFeed, getRows, getCategories, getSnapshot, getHealth, loadSeed, state, REFRESH_INTERVAL_MS };

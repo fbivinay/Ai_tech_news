@@ -34,7 +34,7 @@ cp .env.example .env      # add your ANTHROPIC_API_KEY
 ANTHROPIC_API_KEY=sk-ant-... npm start
 ```
 
-Feeds refresh every minute (`REFRESH_INTERVAL_MS` to change), and the page live-polls every minute, showing a "New stories" pill when fresh news lands.
+Feeds refresh at most every 15 minutes (`REFRESH_INTERVAL_MS` to change; Explore every 30, `RESOURCES_REFRESH_INTERVAL_MS`), and the page live-polls every 5 minutes, showing a "New stories" pill when fresh news lands. Refetching and parsing every feed is the costly part on Vercel (billed as active CPU time), so these intervals are what keep the app inside the free plan.
 
 ## Deploy to Vercel
 
@@ -45,7 +45,7 @@ The repo is Vercel-ready out of the box — `public/` is served statically and `
 3. Leave every setting on its default (Framework Preset: **Other**) and hit **Deploy**
 4. Optional: add `ANTHROPIC_API_KEY` under **Project → Settings → Environment Variables** to enable Claude summaries, then redeploy
 
-On Vercel there is no background refresh loop — feeds refresh lazily when a request finds the cache empty or older than 1 minute, and API responses carry `s-maxage` headers so Vercel's CDN serves most visitors without invoking a function at all. Stale data never blocks a request — it is served immediately while the refresh runs in the background (waitUntil). AI summarization is capped at 2 batches (20 newest stories) per refresh; older stories keep extractive summaries until later refreshes.
+On Vercel there is no background refresh loop — feeds refresh lazily when a request finds the cache empty or older than 15 minutes, and API responses carry 5-minute `s-maxage` headers so Vercel's CDN serves most visitors without invoking a function at all. Stale data never blocks a request — it is served immediately while the refresh runs in the background (waitUntil). `/api/status` never refreshes, so an uptime monitor costs almost nothing. AI summarization is capped at 2 batches (20 newest stories) per refresh; older stories keep extractive summaries until later refreshes.
 
 ## API
 
